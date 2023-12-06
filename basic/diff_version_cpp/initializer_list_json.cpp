@@ -144,3 +144,12 @@ int main() {
 
     return 0;
 }
+
+//**std::initializer_list<T>**的使用场景，**std::initializer_list<T>**除了构造函数还提供了三个成员函数，这和 stl 的其他容器的同名方法用法一样：
+//返回列表中元素的个数
+//size_type size() const;
+//返回第一个元素的指针
+//const T* begin() const;
+//返回最后一个元素的下一个位置，代表结束
+//const T* end() const;
+
