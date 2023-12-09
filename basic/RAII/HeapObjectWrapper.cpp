@@ -2,6 +2,7 @@
 // Created by fufeng on 2023/12/6.
 //
 #include <iostream>
+using namespace std;
 
 // 指定c++语言规范：g++ -g -o heap HeapObjectWrapper.cpp -std=c++11
 // Makefile文件编译项目时可以这样指定：make CXXFLAGS="-g -O0 -std=c++11"
