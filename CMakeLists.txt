@@ -5,13 +5,17 @@ message(STATUS "Project ID: ${ProjectId}")
 string(REPLACE " " "_" ProjectId ${ProjectId})
 project(${ProjectId})
 
+#C
 set(CMAKE_C_STANDARD 23)
-#set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_STANDARD 14)
-#set(CMAKE_CXX_STANDARD 17)
-#set(CMAKE_CXX_STANDARD 20)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -o thinking-in-cpp -Wall -Wextra -pedantic -std=c++14")
+#C++
+#set(CMAKE_CXX_STANDARD 11)
+#set(CMAKE_CXX_STANDARD 14)
+#set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -o thinking-in-cpp -Wall -Wextra -pedantic -std=c++${CMAKE_CXX_STANDARD}")
+message(STATUS "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
 
 ## 手动模式
 #set(BOOST_ROOT "/usr/local/include/boost")
