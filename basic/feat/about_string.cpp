@@ -17,7 +17,7 @@ using namespace std;
 
 #define MAX_LEN 100
 
-int main() {
+void cVsCpp() {
     char str1[] = "string";
     cout << strlen(str1) << endl;  // 6
     cout << sizeof(str1) / sizeof(str1[0]) << endl;  // 7
@@ -56,6 +56,32 @@ int main() {
     string s2 = "world";
     string s3 = s1 + s2;
     cout << s3 << endl;
+}
+
+void cStr1() {
+    //原生C字符串需要预留一个'\0'结束符
+    //initializer-string for char array is too long, array size is 10 but initializer has size 11 (including the null terminating character
+    //char strHelloWorld1[10] = {"helloworld"};
+    char strHelloWorld2[11] = {"helloworld"};
+    char strHelloWorld3[] = {"helloworld"};
+}
+
+void cStr2() {
+    char c1 = 0;
+    char c2 = '\0';
+    char c3 = '0';
+
+    // c1 == c2 != c3
+
+    cout << endl;
+}
+
+int main() {
+    cVsCpp();
+
+    cStr1();
+
+    cStr2();
 
     return 0;
 }
