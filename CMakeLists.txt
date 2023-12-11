@@ -46,7 +46,7 @@ if(Boost_FOUND)
     link_directories(${Boost_LIBRARY_DIR})
 endif()
 
-set(SOURCE_FILES main.cpp)
+set(SOURCE_FILES)
 if(Boost_FOUND)
 #    target_link_libraries(${ProjectId} ${Boost_LIBRARIES})
 endif()
