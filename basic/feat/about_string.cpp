@@ -18,6 +18,7 @@ using namespace std;
 #define MAX_LEN 100
 
 void cVsCpp() {
+    cout <<  __FUNCTION__ << endl;
     char str1[] = "string";
     cout << strlen(str1) << endl;  // 6
     cout << sizeof(str1) / sizeof(str1[0]) << endl;  // 7
@@ -59,6 +60,7 @@ void cVsCpp() {
 }
 
 void cStr1() {
+    cout <<  __FUNCTION__ << endl;
     //原生C字符串需要预留一个'\0'结束符
     //initializer-string for char array is too long, array size is 10 but initializer has size 11 (including the null terminating character
     //char strHelloWorld1[10] = {"helloworld"};
@@ -67,6 +69,7 @@ void cStr1() {
 }
 
 void cStr2() {
+    cout <<  __FUNCTION__ << endl;
     char c1 = 0;
     char c2 = '\0';
     char c3 = '0';
@@ -76,12 +79,88 @@ void cStr2() {
     cout << endl;
 }
 
+void strArrayVsPtrStr() {
+    cout <<  __FUNCTION__ << endl;
+
+    char str1[] = "helloworld";
+    char *str2 = "helloworld";
+    str2 = str1;  //正确，可以修改
+    //str1 = str2;  //错误，不可以修改 数组变量名称不允许修改
+
+    //for (int index = 0; index < 10; index++) {
+    for (int index = 0; index < strlen(str1); index++) {
+        str1[index] += 1;
+        cout << str1[index] << endl;
+    }
+
+    cout << "---------------" << endl;
+
+//    for (int index = 0; index < 10; index++) {
+//        str2[index] += 1;   //Exception: EXC_BAD_ACCESS (code=2, address=0x1007afd60)
+//        cout << str2[index] << endl;
+//    }
+
+    // 结论：
+    // string[] 时，string是不可变，string[i]是可变的
+    // string* 时，string是可变的，string[i]是不可变的
+
+    char *str3 = str1;
+    for (int index = 0; index < strlen(str3); index++) {
+        str3[index] += 1;  // 没问题
+        cout << str3[index] << endl;
+    }
+
+    // 结论：
+    // 指针指向的区域是不可变的那么就不允许修改
+    // 指针指向的区域是可变的那么就允许修改
+
+    //计算字符串长度以及内存占用
+    cout << "str1: " << strlen(str1) << " bytes, " << sizeof(str1) << " bytes" << endl;
+    cout << "str2: " << strlen(str2) << " bytes, " << sizeof(str2) << " bytes" << endl;
+}
+
+void strFunc() {
+    cout <<  __FUNCTION__ << endl;
+    char str1[] = "helloworld";
+    cout << strlen(str1) << endl;
+    cout << sizeof(str1) << endl;
+
+    char str2[] = "helloworld";
+    char str3[] = "hflloworld";
+    char str4[] = "halloworld";
+    cout << strcmp(str1, str2) << endl;
+    cout << strcmp(str1, str3) << endl;
+    cout << strcmp(str1, str4) << endl;
+}
+
+void strFunc1() {
+    cout <<  __FUNCTION__ << endl;
+    char str1[] = "hello";
+    char str2[] = "world";
+    char str3[MAX_LEN] = {0};
+    strcpy(str3, str1); // hello
+    strncpy(str3, str2, 2); // wollo
+    strcat(str3, str2); // wolloworld
+    unsigned int len = strlen(str3);
+    //unsigned int len = sizeof(str3) / sizeof(str3[0]);
+    for (int index = 0; index < len; index++) {
+        cout << str3[index] << " ";
+    }
+    cout << endl;
+}
+
 int main() {
     cVsCpp();
 
     cStr1();
 
     cStr2();
+
+    strArrayVsPtrStr();
+
+    strFunc();
+
+    strFunc1();
 
     return 0;
 }
