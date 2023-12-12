@@ -143,10 +143,14 @@ void strFunc1() {
     strcat(str3, str2); // wolloworld
     unsigned int len = strlen(str3);
     //unsigned int len = sizeof(str3) / sizeof(str3[0]);
-    for (int index = 0; index < len; index++) {
+    for (unsigned int index = 0; index < len; index++) {
         cout << str3[index] << " ";
     }
     cout << endl;
+
+    // 下面代码的问题？ 追加的值超过了str2的长度，会出现内存溢出，导致程序崩溃或者改掉程序中其他模块儿的值
+    strcat(str2, "Welcome to C++");
+
 }
 
 int main() {
