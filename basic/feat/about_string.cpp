@@ -2,7 +2,7 @@
 // Created by fufeng on 2023/12/10.
 //
 #include <iostream>
-#include <string>
+#include <cstring>
 
 using namespace std;
 
@@ -153,6 +153,61 @@ void strFunc1() {
 
 }
 
+//#define STR_LEN_NUM 16
+const unsigned int STR_LEN_NUM = 16;
+//#define MAX_LEN_NUM 7
+const unsigned int MAX_LEN_NUM = 7;
+//#define NUM_TO_COPY 2
+const unsigned int NUM_TO_COPY = 2;
+
+// 安全的string操作函数
+void strFunc2() {
+    cout <<  __FUNCTION__ << endl;
+//    char str1[] = "hello";
+//    char str2[STR_LEN_NUM] = "world";
+//    char str3[MAX_LEN_NUM] = {0};
+//    //strcpy(str3, str1); // hello
+//    strcpy_s(str3, MAX_LEN_NUM, str1); // hello
+//    //strncpy(str3, str2, 2); // wollo
+//    strncpy_s(str3, MAX_LEN_NUM, str2, NUM_TO_COPY); // wollo
+//    //strcat(str3, str2); // wolloworld
+//    strcat_s(str3, MAX_LEN_NUM, str2); // wolloworld
+//    //unsigned int len = strlen(str3);
+//    unsigned int len = strlen_s(str3, MAX_LEN_NUM);
+//    //unsigned int len = sizeof(str3) / sizeof(str3[0]);
+//    for (unsigned int index = 0; index < len; index++) {
+//        cout << str3[index] << " ";
+//    }
+//    cout << endl;
+//
+//    // 下面代码的问题？ 追加的值超过了str2的长度，会出现内存溢出，导致程序崩溃或者改掉程序中其他模块儿的值
+//    strcat_s(str2, STR_LEN_NUM, "Welcome to C++");
+}
+
+void cppString() {
+    cout <<  __FUNCTION__ << endl;
+    string s1;
+    string s2 = "helloworld"; // 定义时初始化
+    string s3("helloworld");
+    string s4 = string("helloworld");
+    // 获取字符串长度
+    cout << s1.length() << endl;
+    cout << s1.size() << endl;
+    cout << s1.capacity() << endl;
+    // 字符串比较
+    s1 = "hello", s2 = "world";
+    cout << (s1 == s2) << endl;
+    cout << (s1 != s2) << endl;
+    cout << s1.compare(s2) << endl;
+
+    // c++转换为C字符串
+    const char *c_str = s1.c_str();
+    cout << "The C-Style string c_str is: " << c_str << endl;
+
+    //随机获取字符串中某个字符
+    cout << s1[0] << endl;
+}
+
 int main() {
     cVsCpp();
 
@@ -165,6 +220,10 @@ int main() {
     strFunc();
 
     strFunc1();
+
+    strFunc2();
+
+    cppString();
 
     return 0;
 }
