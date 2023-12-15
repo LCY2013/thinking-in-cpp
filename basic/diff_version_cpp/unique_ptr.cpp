@@ -552,6 +552,71 @@ void func18() {
 
 }
 
+//有可能对上述代码产生疑问，既然使用了std::weak_ptr的expired()方法判断了对象是否存在，
+//为什么不直接使用std::weak_ptr对象对引用资源进行操作呢？
+// 实际上这是行不通的，std::weak_ptr类没有重写operator->和operator方法，
+// 因此不能像std::shared_ptr或std::unique_ptr一样直接操作对象，
+// 同时std::weak_ptr类也没有重写operator bool()操作，因此也不能通过std::weak_ptr*对象直接判断其引用的资源是否存在：
+
+class Func19A {
+public:
+    void doSomething() {
+
+    }
+};
+
+void func19() {
+    std::shared_ptr<Func19A> sp1(new Func19A());
+    std::weak_ptr<Func19A> sp2(sp1);
+
+    // 正确
+    if (sp1) {
+        sp1->doSomething();
+        (*sp1).doSomething();
+    }
+    if (!sp1) {
+
+    }
+
+    // 错误
+    /*if (sp2) {
+        sp2->doSomething();
+        (*sp2).doSomething();
+    }
+    if (!sp2) {
+
+    }*/
+}
+
+//之所以std::weak_ptr不增加引用资源的引用计数来管理资源的生命周期，是因为即使它实现了以上说的几个方法，调用它们仍然是不安全的，因为在调用期间，引用的资源可能恰好被销毁了，这样可能会造成比较棘手的错误和麻烦。
+//
+//因此，std::weak_ptr的正确使用场景是那些资源如果可用就使用，如果不可用则不使用的场景，它不参与资源的生命周期管理。例如，网络分层结构中，Session对象（会话对象）利用Connection对象（连接对象）提供的服务来进行工作，但是Session对象不管理Connection对象的生命周期，Session管理Connection的生命周期是不合理的，因为网络底层出错会导致Connection对象被销毁，此时Session对象如果强行持有Connection对象则与事实矛盾。
+//
+//std::weak_ptr的应用场景，经典的例子是订阅者模式或者观察者模式中。这里以订阅者为例来说明，消息发布器只有在某个订阅者存在的情况下才会向其发布消息，而不能管理订阅者的生命周期。
+class Subscriber {
+    //...
+public:
+    virtual void onMessage(const std::string &msg) = 0;
+};
+
+class SubscriberManager {
+public:
+    void publish(const std::string &msg) {
+        for (auto &subscriber: subscribers_) {
+            if (subscriber.expired()) {
+                continue;
+            }
+            if (auto sp = subscriber.lock()) {
+                // 给订阅者发送消息
+                sp->onMessage(msg);
+            }
+        }
+    }
+
+private:
+    std::vector<std::weak_ptr<Subscriber>> subscribers_;
+};
+
 
 void funcSharedPtr() {
     //func12();
@@ -560,10 +625,185 @@ void funcSharedPtr() {
     //func15();
     //func16();
     //func17();
-    func18();
+}
+
+void funcWeakPtr() {
+    //func18();
+    func19();
+}
+
+// 智能指针对象的大小
+//一个std::unique_ptr对象大小与裸指针大小相同（即sizeof(std::unique_ptr<T>) == sizeof(void*)），
+// 而std::shared_ptr的大小是std::unique_ptr的一倍。
+//
+//测试代码
+void funcPrtSize() {
+    shared_ptr<int> sp0;
+    shared_ptr<string> sp1;
+    sp1.reset(new string("hello"));
+    unique_ptr<int> sp2;
+    weak_ptr<int> sp3;
+
+    cout << "sizeof(sp0): " << sizeof(sp0) << endl;
+    cout << "sizeof(sp1): " << sizeof(sp1) << endl;
+    cout << "sizeof(sp2): " << sizeof(sp2) << endl;
+    cout << "sizeof(sp3): " << sizeof(sp3) << endl;
+
+    //sizeof(sp0): 16
+    //sizeof(sp1): 16
+    //sizeof(sp2): 8
+    //sizeof(sp3): 16
+    //在64位机器上，std_unique_ptr占8字节，std::shared_ptr和std::weak_ptr占16字节。
+    // 也就是说，std_unique_ptr的大小总是和原始指针大小一样，std::shared_ptr和std::weak_ptr大小是原始指针的一倍。
+}
+
+//智能指针使用注意事项
+
+//C++新标准提倡的理念之一是不应该再手动调用delete或者free函数去释放内存了，而应该把它们交给新标准提供的各种智能指针对象。
+// C++新标准中的各种智能指针是如此的实用与强大，在现代C++ 项目开发中，读者应该尽量去使用它们。
+// 智能指针虽然好用，但稍不注意，也可能存在许多难以发现的bug，这里我根据经验总结了几条：
+
+//一、一旦一个对象使用智能指针管理后，就不该再使用原始裸指针去操作；
+//二、智能指针的拷贝构造函数和赋值运算符是禁用的，因此不应该使用它们；
+//三、智能指针的移动构造函数和移动赋值运算符是默认的，因此应该使用它们；
+//四、智能指针的析构函数是默认的，因此不应该重写它；
+//五、智能指针的reset()方法是唯一可以重写的；
+//六、智能指针的get()方法是唯一可以重写的；
+
+
+//1、一旦一个对象使用智能指针管理后，就不该再使用原始裸指针去操作；
+class TipsClass {
+
+};
+
+void tips_one() {
+    TipsClass *p = new TipsClass();
+    unique_ptr<TipsClass> up(p);
+    // 错误，不能使用原始指针去操作
+    //delete p;
+    // 正确，使用智能指针去操作
+    //up->~TipsClass();
+}
+
+//这段代码创建了一个堆对象TipsClass，然后利用智能指针up 去管理之，可是私下却利用原始指针销毁了该对象，这让智能指针对象up情何以堪啊？
+//
+//记住，一旦智能指针对象接管了你的资源，所有对资源的操作都应该通过智能指针对象进行，不建议再通过原始指针进行操作了。
+// 当然，除了std::weak_ptr，std::unique_ptr和std::shared_ptr都提供了获取原始指针的方法——**get()**函数。
+void tips_two() {
+    TipsClass *p = new TipsClass();
+    unique_ptr<TipsClass> up(p);
+    // originPrt 和 p 是指向同一个对象
+    TipsClass *originPrt = up.get();
+}
+
+//2. 分清楚场合应该使用哪种类型的智能指针；
+//通常情况下，如果你的资源不需要在其他地方共享，那么应该优先使用std::unique_ptr，反之使用std::shared_ptr，
+// 当然这是在该智能指针需要管理资源的生命周期的情况下；如果不需要管理对象的生命周期，请使用std::weak_ptr。
+
+//3. 认真考虑，避免操作某个引用资源已经释放的智能指针；
+//前面的例子，一定让读者觉得非常容易知道一个智能指针持有的资源是否还有效，但还是建议在不同场景谨慎一点，有些场景是很容易造成误判的。
+// 例如下面的代码：
+class Resource {
+public:
+    Resource() {
+        cout << "Resource()" << endl;
+    }
+
+    ~Resource() {
+        cout << "~Resource()" << endl;
+    }
+
+    void doSomething() {
+        std::cout << "Resource do something..." << data << std::endl;
+    }
+
+private:
+    int data;
+};
+
+void tips_three() {
+    shared_ptr<Resource> up(new Resource());
+    const auto &up1 = up;
+    up.reset();
+
+    //由于up1已经不再持有对象的引用，程序会在这里出现意外的行为
+    up1->doSomething();
+}
+
+//上述代码中，up1是up的引用，up被置空后，up1也一同为空。这时候调用up1->doSomething()，
+// up1->（即 operator->）在内部会调用**get()**方法获取原始指针对象，这时会得到一个空指针（地址为0），继续调用doSomething()导致程序崩溃。
+//
+//可能觉得上述代码片段存在的问题是显而易见的，ok，让把这个例子放到实际开发中再来看一下：
+//连接断开
+//void MonitorServer::OnClose(const std::shared_ptr<TcpConnection>& conn)
+//{
+//    std::lock_guard<std::mutex> guard(m_sessionMutex);
+//    for (auto iter = m_sessions.begin(); iter != m_sessions.end(); ++iter)
+//    {
+//        //通过比对connection对象找到对应的session
+//        if ((*iter)->GetConnectionPtr() == conn)
+//        {
+//            m_sessions.erase(iter);
+//            //注意这里：程序崩溃
+//            LOGI("monitor client disconnected: %s", conn->peerAddress().toIpPort().c_str());
+//            break;
+//        }
+//    }
+//}
+
+//注意代码中我提醒注意的地方，该段程序会崩溃，崩溃原因是调用了conn->peerAddress()方法。为什么这个方法的调用可能会引起崩溃？现在还可以显而易见地看出问题吗？
+//
+//崩溃原因是传入的conn对象和上一个例子中的up1一样都是另外一个std::shared_ptr的引用，当连接断开时，对应的TcpConnection对象可能早已被销毁，而conn引用就会变成空指针（严格来说是不再持有一个TcpConnection对象的引用），此时调用TcpConnection的peerAddress()方法就会产生和上一个示例一样的错误。
+
+//3、作为类成员变量时，应该优先使用前置声明（forward declarations）
+//我们知道，为了减少编译依赖、加快编译速度和减小生成的二进制文件的大小，
+// C/C++项目中一般在*.h文件对于指针类型尽量使用前置声明，而不是直接包含对应类的头文件。例如：
+/*
+//Test.h
+//在这里使用A的前置声明，而不是直接包含A.h文件
+class A;
+
+class Test
+{
+public:
+    Test();
+    ~Test();
+
+private:
+    A*      m_pA;
+};
+ */
+
+//同样的道理，在头文件中当使用智能指针对象作为类成员变量时，也应该优先使用前置声明去引用智能指针对象的包裹类，
+// 而不是直接包含包裹类的头文件。
+/*
+//Test.h
+#include <memory>
+
+//智能指针包裹类A，这里优先使用A的前置声明，而不是直接包含A.h
+class A;
+
+class Test
+{
+public:
+    Test();
+    ~Test();
+
+private:
+    std::unique_ptr<A>  m_spA;
+};
+ */
+
+void tips() {
+    //tips_one();
+    //tips_two();
+    tips_three();
 }
 
 int main() {
     //funcUniquePtr();
-    funcSharedPtr();
+    //funcSharedPtr();
+    //funcWeakPtr();
+    //funcPrtSize();
+    tips();
 }
