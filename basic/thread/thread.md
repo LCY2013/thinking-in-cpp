@@ -846,13 +846,325 @@ int main()
 }
 ```
 
+## 线程函数传C++类实例指针惯用法
+除了C++11的线程库提供了的std::thread类对线程函数签名没有特殊要求外，无论是Linux还是Windows的线程函数的签名都必须是指定的格式，即参数和返回值必须是规定的形式。如果使用C++面向对象的方式对线程函数进行封装，那么线程函数就不能是类的实例方法，即必须是类的静态方法。那么，为什么不能是类的实例方法呢？我们以Linux的线程函数签名为例：
 
+> void* threadFunc(void* arg);
 
+假设我们将线程的基本功能封装到一个 Thread 类中，部分代码如下：
+```c++
+class Thread
+{
+public:
+    Thread();
+    ~Thread();
 
+    void start();
+    void stop();
 
+    void* threadFunc(void* arg);
+};
+```
 
+由于threadFunc是一个类实例方法，无论是类的实例方法还是静态方法，C++编译器在编译时都会将这些函数”翻译“成全局函数，即去掉类的域限制。对于实例方法，为了保证类方法的正常功能，C++编译器在翻译时，会将类的实例对象地址（也就是this指针）作为第一个参数传递给该方法，也就是说，翻译后的threadFunc的签名变成了如下形式（伪代码）：
+```c++
+void* threadFunc(Thread* this, void* arg);
+```
 
+这样的话，就不符合线程函数签名要求了。因此如果使用类方法作为线程函数则只能是类的静态方法而不能是类的实例方法。
 
+当然，如果是使用C++11的std::thread类就没有这个限制，即使类成员函数是类的实例方法也可以，但是必须显式地将线程函数所属的类对象实例指针（在类的内部就是this指针）作为构造函数参数传递给std::thread，还是需要传递类的this指针，这在本质上是一样的，代码实例如下：
+
+```c++
+#include <thread>
+#include <memory>
+#include <stdio.h>
+
+class Thread
+{
+public:
+    Thread()
+    {
+    }
+
+    ~Thread()
+    {
+    }
+
+    void Start()
+    {
+        m_stopped = false;
+        //threadFunc是类的非静态方法，所以作为线程函数，第一个参数必须传递类实例地址，即this指针
+        m_spThread.reset(new std::thread(&Thread::threadFunc, this, 8888, 9999));
+    }
+
+    void Stop()
+    {
+        m_stopped = true;
+        if (m_spThread)
+        {
+            if (m_spThread->joinable())
+                m_spThread->join();
+        }
+    }
+
+private:
+    void threadFunc(int arg1, int arg2)
+    {
+        while (!m_stopped)
+        {
+            printf("Thread function use instance method.\n");
+        }      
+    }
+
+private:
+    std::shared_ptr<std::thread>  m_spThread;
+    bool                          m_stopped;
+};
+
+int main()
+{
+    Thread mythread;
+    mythread.Start();
+
+    //权宜之计，让主线程不要提前退出
+    while (true)
+    {
+    }
+    
+    return 0;
+}
+```
+
+上述代码中使用了C++11新增的智能指针std::shared_ptr类来包裹了一下new出来的std::thread对象，这样我们就不需要自己手动delete这个std::thread对象了。
+
+综上所述，如果不使用C++11的语法，那么线程函数只能使用类的静态方法，且函数签名必须符合线程函数的签名要求。如果是类的静态方法，那么就没法访问类的实例方法了，为了解决这个问题，我们在实际开发中往往会在创建线程时将当前对象的地址（this指针）传递给线程函数，然后在线程函数中，将该指针转换成原来的类实例，再通过这个实例就可以访问类的所有方法了。代码示例如下：
+
+.h文件代码如下：
+
+```c++
+/**
+ * Thread.h
+ */
+#ifdef WIN32
+typedef HANDLE THREAD_HANDLE ;
+#else
+typedef pthread_t THREAD_HANDLE ;
+#endif
+
+/**定义了一个线程对象
+ */
+class  CThread  
+{
+public:
+	/**构造函数
+	 */
+	CThread();
+	
+	/**析构函数
+	 */
+	virtual ~CThread();
+	
+	/**创建一个线程
+	 * @return true:创建成功 false:创建失败
+	 */
+	virtual bool Create();
+	
+	/**获得本线程对象存储的线程句柄
+	 * @return 本线程对象存储的线程句柄线程句柄
+	 */
+	THREAD_HANDLE GetHandle();
+
+	/**线程睡眠seconds秒
+	 * @param seconds 睡眠秒数
+	 */
+	void OSSleep(int nSeconds);
+
+	void SleepMs(int nMilliseconds);
+
+	bool Join();
+
+	bool IsCurrentThread();
+
+	void ExitThread();
+
+private:	
+#ifdef WIN32
+	static DWORD WINAPI _ThreadEntry(LPVOID pParam);
+#else
+	static void* _ThreadEntry(void* pParam);
+#endif
+
+	/**虚函数，子类可做一些实例化工作
+	 * @return true:创建成功 false:创建失败
+	 */
+	virtual bool InitInstance();
+	
+	/**虚函数，子类清楚实例
+	 */
+	virtual void ExitInstance();
+	
+	/**线程开始运行，纯虚函数，子类必须继承实现
+	 */
+	virtual void Run() = 0;
+	
+private:
+     //线程句柄
+	 THREAD_HANDLE  m_hThread;
+	 DWORD          m_IDThread;
+};
+```
+
+.cpp文件如下：
+```c++
+/**
+ * Thread.cpp
+ */
+#include "Thread.h"
+
+#ifdef WIN32
+DWORD WINAPI CThread::_ThreadEntry(LPVOID pParam)
+#else
+void* CThread::_ThreadEntry(void* pParam)
+#endif
+{
+	CThread *pThread = (CThread *)pParam;
+    if(pThread->InitInstance())
+    {
+    	pThread->Run();
+    }
+
+	pThread->ExitInstance();
+
+	return NULL;
+}
+
+CThread::CThread()
+{
+	m_hThread = (THREAD_HANDLE)0;
+	m_IDThread = 0;
+}
+
+CThread::~CThread()
+{
+}
+
+bool CThread::Create()
+{
+	if (m_hThread != (THREAD_HANDLE)0)
+	{
+		return true;
+	}
+	bool ret = true;
+#ifdef WIN32
+	m_hThread = ::CreateThread(NULL,0,_ThreadEntry,this,0,&m_IDThread);
+	if(m_hThread==NULL)
+	{
+		ret = false;
+	}
+#else
+	ret = (::pthread_create(&m_hThread,NULL,&_ThreadEntry , this) == 0);
+#endif
+	return ret;
+}
+
+bool CThread::InitInstance()
+{
+	return true;
+}
+
+void CThread::ExitInstance()
+{
+}
+
+void CThread::OSSleep(int seconds)
+{
+#ifdef WIN32
+	::Sleep(seconds*1000);
+#else
+	::sleep(seconds);
+#endif
+}
+
+void CThread::SleepMs(int nMilliseconds)
+{
+#ifdef WIN32
+	::Sleep(nMilliseconds);
+#else
+	::usleep(nMilliseconds);
+#endif
+}
+
+bool CThread::IsCurrentThread()
+{
+#ifdef WIN32
+	return ::GetCurrentThreadId() == m_IDThread;
+#else
+	return ::pthread_self() == m_hThread;
+#endif
+}
+
+bool CThread::Join()
+{	
+	THREAD_HANDLE hThread = GetHandle();
+	if(hThread == (THREAD_HANDLE)0)
+	{
+		return true;
+	}
+#ifdef WIN32
+	return (WaitForSingleObject(hThread,INFINITE) != 0);
+#else
+	return (pthread_join(hThread, NULL) == 0);
+#endif
+}
+
+void CThread::ExitThread()
+{
+#ifdef WIN32
+	::ExitThread(0);
+#else
+#endif
+}
+```
+
+上述代码CThread类封装了一个线程的常用的操作，使用宏WIN32来分别实现了Windows和Linux两个操作系统平台的线程操作。其中InitInstance和ExitInstance方法为虚函数，在继承CThread的子类中可以改写这两个方法，根据实际需要在线程函数正式业务逻辑前后做一些初始化和反初始化工作，而纯虚接口Run方法必须改写，改写成线程实际执行函数。
+
+在线程函数中通过在创建线程（调用CreateThread或pthread_create方法）时，将当前对象的this指针作为线程函数的唯一参数传入，这样在线程函数中，可以通过线程函数参数得到对象的指针，通过这个指针就可以自由访问类的实例方法了。这一技巧非常常用，它广泛地用于各类开源C++项目或者实际的商业C++项目中，希望读者能理解并熟练掌握它。
+
+那么类的实例方法就一定不能作为线程函数了吗？不一定，在C++11语法中我们可以使用std::bind这一工具来给线程函数绑定一个this指针，这样就能使用类实例方法作为线程函数了，示例代码如下：
+
+```c++
+#include <thread>
+#include <memory>
+
+class CIUSocket
+{
+    //这里省略构造、析构等函数
+public:
+    void Init();
+    void Uninit();
+
+    void Join();
+
+private:   
+    void    SendThreadProc();
+    void    RecvThreadProc();
+
+private:	
+    std::unique_ptr<std::thread>    m_spSendThread;
+    std::unique_ptr<std::thread>    m_spRecvThread;
+};
+```
+
+重点来看下CIUSocket::Init函数：
+```c++
+void CIUSocket::Init()
+{
+	//SendThreadProc和RecvThreadProc都是类的实例方法
+	m_spSendThread.reset(new std::thread(std::bind(&CIUSocket::SendThreadProc, this)));
+	m_spRecvThread.reset(new std::thread(std::bind(&CIUSocket::RecvThreadProc, this)));
+}
+```
 
 
 
