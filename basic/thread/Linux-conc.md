@@ -1,7 +1,9 @@
 # Linux线程同步对象
 
 ## Linux互斥体
-Linux互斥体的用法和Windows的临界区对象用法很相似，一般也是通过限制多个线程同时执行某段代码来达到保护资源的目的。和接下来要介绍的信号量、条件变量一样，Linux互斥体都实现在 NPTL （Native POSIX Thread Library）。在NPTL中我们使用数据结构pthread_mutex_t来表示一个互斥体对象（定义于pthread.h头文件中）。互斥体对象我们可以使用两种方式来初始化：
+
+Linux互斥体的用法和Windows的临界区对象用法很相似，一般也是通过限制多个线程同时执行某段代码来达到保护资源的目的。和接下来要介绍的信号量、条件变量一样，Linux互斥体都实现在
+NPTL （Native POSIX Thread Library）。在NPTL中我们使用数据结构pthread_mutex_t来表示一个互斥体对象（定义于pthread.h头文件中）。互斥体对象我们可以使用两种方式来初始化：
 
 - 使用PTHREAD_MUTEX_INITIALIZER直接给互斥体变量赋值
 
@@ -21,7 +23,9 @@ int pthread_mutex_init(pthread_mutex_t* restrict mutex,
 					   const pthread_mutexattr_t* restrict attr);
 ``` 
 
-参数mutex即我们需要初始化的 mutex 对象的指针，参数attr是需要设置的互斥体属性，通常情况下，我们使用默认属性可以将这个参数设置为NULL，后面我们会详细介绍每一种属性的用法。如果函数执行成功会返回0，如果执行失败会返回一个错误码。 pthread_mutex_init代码示例如下：
+参数mutex即我们需要初始化的 mutex
+对象的指针，参数attr是需要设置的互斥体属性，通常情况下，我们使用默认属性可以将这个参数设置为NULL，后面我们会详细介绍每一种属性的用法。如果函数执行成功会返回0，如果执行失败会返回一个错误码。
+pthread_mutex_init代码示例如下：
 
 ```c++
 #include <pthread.h>
@@ -40,41 +44,47 @@ int pthread_mutex_destroy(pthread_mutex_t* mutex);
 
 1. 使用PTHREAD_MUTEX_INITIALIZER初始化的互斥体无须销毁；
 
-2. 不要去销毁一个已经加锁或正在被条件变量使用的互斥体对象，当互斥体处于已加锁的状态或者正在和条件变量配合使用时，调用pthread_mutex_destroy函数会返回 EBUSY 错误。
+2. 不要去销毁一个已经加锁或正在被条件变量使用的互斥体对象，当互斥体处于已加锁的状态或者正在和条件变量配合使用时，调用pthread_mutex_destroy函数会返回
+   EBUSY 错误。
 
 以下代码段演示了尝试销毁一个被锁定的互斥体对象：
+
 ```c++
 //destroy_locked_mutex.cpp
-#include <pthread.h>
-#include <stdio.h>
-#include <errno.h>
+#include
+<pthread.h>
+#include
+<stdio.h>
+#include
+<errno.h>
 
 int main()
 {
-	pthread_mutex_t mymutex;
-	pthread_mutex_init(&mymutex, NULL);
-	int ret = pthread_mutex_lock(&mymutex);
-	
-	//尝试对被锁定的mutex对象进行销毁
-	ret = pthread_mutex_destroy(&mymutex);
-	if (ret != 0)
-	{
-		if (ret == EBUSY)
-			printf("EBUSY\n");
-		printf("Failed to destroy mutex.\n");
-	}
+pthread_mutex_t mymutex;
+pthread_mutex_init(&mymutex, NULL);
+int ret = pthread_mutex_lock(&mymutex);
 
-	ret = pthread_mutex_unlock(&mymutex);
-	//尝试对已经解锁的mutex对象进行销毁
-	ret = pthread_mutex_destroy(&mymutex);
-	if (ret == 0)
-		printf("Succeeded to destroy mutex.\n");
+//尝试对被锁定的mutex对象进行销毁
+ret = pthread_mutex_destroy(&mymutex);
+if (ret != 0)
+{
+if (ret == EBUSY)
+printf("EBUSY\n");
+printf("Failed to destroy mutex.\n");
+}
 
-	return 0;
+ret = pthread_mutex_unlock(&mymutex);
+//尝试对已经解锁的mutex对象进行销毁
+ret = pthread_mutex_destroy(&mymutex);
+if (ret == 0)
+printf("Succeeded to destroy mutex.\n");
+
+return 0;
 }
 ```
 
 编译上述代码并执行得到我们期望的结果：
+
 ```shell
 [root@localhost codes]# g++ -g -o destroy_locked_mutex destroy_locked_mutex.cpp -lpthread
 [root@localhost codes]# ./destroy_locked_mutex 
@@ -113,7 +123,8 @@ int pthread_mutexattr_gettype(const pthread_mutexattr_t* restrict attr, int* res
 
 - PTHREAD_MUTEX_NORMAL（普通锁）
 
-这是互斥体对象的默认属性（即上文中介绍的pthread_mutex_init第二个函数设置为NULL）。当一个线程对一个普通锁加锁以后，其他线程会阻塞在pthread_mutex_lock调用处， 直到对互斥体加锁的线程释放了锁，我们来用一段实例代码来验证一下：
+这是互斥体对象的默认属性（即上文中介绍的pthread_mutex_init第二个函数设置为NULL）。当一个线程对一个普通锁加锁以后，其他线程会阻塞在pthread_mutex_lock调用处，
+直到对互斥体加锁的线程释放了锁，我们来用一段实例代码来验证一下：
 
 ```c++
 #include <pthread.h>
@@ -175,16 +186,1259 @@ int main()
 }
 ```
 
+上述代码创建了五个工作线程，由于使用了互斥体保护资源resourceNo，所以每次在pthread_mutex_lock与pthread_mutex_unlock之间的输出都是连续的，一个线程必须完成了这个工作，其他线程才有机会获得执行这段代码的机会，当一个线程拿到锁后，其他线程会阻塞在pthread_mutex_lock处。
+
+程序执行结果如下：
+
+```shell
+[root@localhost testmultithread]# ./test
+thread start, ThreadID: 520349440
+Mutex lock, resourceNo: 0, ThreadID: 520349440
+Mutex unlock, resourceNo: 1, ThreadID: 520349440
+thread start, ThreadID: 545527552
+Mutex lock, resourceNo: 1, ThreadID: 545527552
+Mutex unlock, resourceNo: 2, ThreadID: 545527552
+thread start, ThreadID: 511956736
+Mutex lock, resourceNo: 2, ThreadID: 511956736
+Mutex unlock, resourceNo: 3, ThreadID: 511956736
+thread start, ThreadID: 537134848
+Mutex lock, resourceNo: 3, ThreadID: 537134848
+Mutex unlock, resourceNo: 4, ThreadID: 537134848
+thread start, ThreadID: 528742144
+Mutex lock, resourceNo: 4, ThreadID: 528742144
+Mutex unlock, resourceNo: 5, ThreadID: 528742144
+Mutex lock, resourceNo: 5, ThreadID: 545527552
+Mutex unlock, resourceNo: 6, ThreadID: 545527552
+Mutex lock, resourceNo: 6, ThreadID: 537134848
+Mutex unlock, resourceNo: 7, ThreadID: 537134848
+Mutex lock, resourceNo: 7, ThreadID: 528742144
+Mutex unlock, resourceNo: 8, ThreadID: 528742144
+Mutex lock, resourceNo: 8, ThreadID: 520349440
+Mutex unlock, resourceNo: 9, ThreadID: 520349440
+Mutex lock, resourceNo: 9, ThreadID: 511956736
+Mutex unlock, resourceNo: 10, ThreadID: 511956736
+Mutex lock, resourceNo: 10, ThreadID: 545527552
+Mutex unlock, resourceNo: 11, ThreadID: 545527552
+Mutex lock, resourceNo: 11, ThreadID: 537134848
+Mutex unlock, resourceNo: 12, ThreadID: 537134848
+Mutex lock, resourceNo: 12, ThreadID: 520349440
+Mutex unlock, resourceNo: 13, ThreadID: 520349440
+Mutex lock, resourceNo: 13, ThreadID: 528742144
+Mutex unlock, resourceNo: 14, ThreadID: 528742144
+Mutex lock, resourceNo: 14, ThreadID: 511956736
+Mutex unlock, resourceNo: 15, ThreadID: 511956736
+Mutex lock, resourceNo: 15, ThreadID: 528742144
+Mutex unlock, resourceNo: 16, ThreadID: 528742144
+Mutex lock, resourceNo: 16, ThreadID: 545527552
+Mutex unlock, resourceNo: 17, ThreadID: 545527552
+Mutex lock, resourceNo: 17, ThreadID: 520349440
+Mutex unlock, resourceNo: 18, ThreadID: 520349440
+Mutex lock, resourceNo: 18, ThreadID: 537134848
+Mutex unlock, resourceNo: 19, ThreadID: 537134848
+Mutex lock, resourceNo: 19, ThreadID: 511956736
+Mutex unlock, resourceNo: 20, ThreadID: 511956736
+Mutex lock, resourceNo: 20, ThreadID: 545527552
+Mutex unlock, resourceNo: 21, ThreadID: 545527552
+Mutex lock, resourceNo: 21, ThreadID: 528742144
+Mutex unlock, resourceNo: 22, ThreadID: 528742144
+Mutex lock, resourceNo: 22, ThreadID: 520349440
+Mutex unlock, resourceNo: 23, ThreadID: 520349440
+Mutex lock, resourceNo: 23, ThreadID: 537134848
+Mutex unlock, resourceNo: 24, ThreadID: 537134848
+Mutex lock, resourceNo: 24, ThreadID: 511956736
+Mutex unlock, resourceNo: 25, ThreadID: 511956736
+Mutex lock, resourceNo: 25, ThreadID: 528742144
+Mutex unlock, resourceNo: 26, ThreadID: 528742144
+Mutex lock, resourceNo: 26, ThreadID: 545527552
+Mutex unlock, resourceNo: 27, ThreadID: 545527552
+Mutex lock, resourceNo: 27, ThreadID: 520349440
+Mutex unlock, resourceNo: 28, ThreadID: 520349440
+Mutex lock, resourceNo: 28, ThreadID: 511956736
+Mutex unlock, resourceNo: 29, ThreadID: 511956736
+Mutex lock, resourceNo: 29, ThreadID: 537134848
+Mutex unlock, resourceNo: 30, ThreadID: 537134848
+```
+
+一个线程如果对一个已经加锁的普通锁再次使用pthread_mutex_lock加锁，程序会阻塞在第二次调用pthread_mutex_lock代码处。测试代码如下：
+
+```shell
+#include <pthread.h>
+#include <stdio.h>
+#include <errno.h>
+#include <unistd.h>
+
+int main()
+{
+	pthread_mutex_t mymutex;
+	pthread_mutexattr_t mutex_attr;
+	pthread_mutexattr_init(&mutex_attr);
+	pthread_mutexattr_settype(&mutex_attr, PTHREAD_MUTEX_NORMAL);
+	pthread_mutex_init(&mymutex, &mutex_attr);
+
+	int ret = pthread_mutex_lock(&mymutex);
+	printf("ret = %d\n", ret);
+
+	ret = pthread_mutex_lock(&mymutex);
+	printf("ret = %d\n", ret);
+
+	
+
+	pthread_mutex_destroy(&mymutex);
+	pthread_mutexattr_destroy(&mutex_attr);
+
+	return 0;
+}
+```
+
+编译并使用gdb将程序运行起来，程序只输出了一行，我们按Ctrl +
+c（下文中^C字符）将gdb中断下来，然后使用bt命令发现程序确实阻塞在第二个pthread_mutex_lock函数调用处：
+
+```shell
+[root@localhost testmultithread]# g++ -g -o test-two-lock test-two-lock.cpp -lpthread
+[root@localhost testmultithread]# gdb test-two-lock
+Reading symbols from /root/testmultithread/test...done.
+(gdb) r
+Starting program: /root/testmultithread/test 
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib64/libthread_db.so.1".
+ret = 0
+^C
+Program received signal SIGINT, Interrupt.
+0x00007ffff7bcd4ed in __lll_lock_wait () from /lib64/libpthread.so.0
+Missing separate debuginfos, use: debuginfo-install glibc-2.17-260.el7.x86_64 libgcc-4.8.5-36.el7.x86_64 libstdc++-4.8.5-36.el7.x86_64
+(gdb) bt
+#0  0x00007ffff7bcd4ed in __lll_lock_wait () from /lib64/libpthread.so.0
+#1  0x00007ffff7bc8dcb in _L_lock_883 () from /lib64/libpthread.so.0
+#2  0x00007ffff7bc8c98 in pthread_mutex_lock () from /lib64/libpthread.so.0
+#3  0x00000000004007f4 in main () at ConsoleApplication10.cpp:17
+(gdb) 
+```
+
+在这种场景下， pthread_mutex_trylock函数如果拿不到锁，不会阻塞，函数会立即返回，返回值是EBUSY错误码。
+
+- PTHREAD_MUTEX_ERRORCHECK（检错锁）
+
+如果一个线程使用pthread_mutex_lock对已经加锁的互斥体对象再次加锁，pthread_mutex_lock会返回EDEADLK。
+
+我们使用下面的代码片段来验证一下同一个线程多次对同一个互斥体对象加锁是什么行为：
+
+```c++
+#include <pthread.h>
+#include <stdio.h>
+#include <errno.h>
+#include <unistd.h>
+
+int main()
+{
+	pthread_mutex_t mymutex;
+	pthread_mutexattr_t mutex_attr;
+	pthread_mutexattr_init(&mutex_attr);
+	pthread_mutexattr_settype(&mutex_attr, PTHREAD_MUTEX_ERRORCHECK);
+	pthread_mutex_init(&mymutex, &mutex_attr);
+
+	int ret = pthread_mutex_lock(&mymutex);
+	printf("ret = %d\n", ret);
+
+	ret = pthread_mutex_lock(&mymutex);
+	printf("ret = %d\n", ret);
+	if (ret == EDEADLK)
+	{
+		printf("EDEADLK\n");
+	}
+
+	pthread_mutex_destroy(&mymutex);
+	pthread_mutexattr_destroy(&mutex_attr);
+
+	return 0;
+}
+```
+
+编译并运行程序，程序输出结果确实如上面所说：
+
+```shell
+[root@localhost testmultithread]# g++ -g -o test11 test.cpp -lpthread
+[root@localhost testmultithread]# ./test11
+ret = 0
+ret = 35
+EDEADLK
+```
+
+再来实验一下一个线程对某个互斥体加锁，其他线程再次对该互斥体加锁的效果：
+
+```c++
+#include <pthread.h>
+#include <stdio.h>
+#include <errno.h>
+#include <unistd.h>
+
+pthread_mutex_t mymutex;
+
+void* worker_thread(void* param)
+{
+	pthread_t threadID = pthread_self();
+
+	printf("thread start, ThreadID: %d\n", threadID);
+
+	while (true)
+	{
+		int ret = pthread_mutex_lock(&mymutex);
+		if (ret == EDEADLK)
+		{
+			printf("EDEADLK, ThreadID: %d\n", threadID);
+		} 
+		else
+			printf("ret = %d, ThreadID: %d\n", ret, threadID);
+
+		//休眠1秒
+		sleep(1);
+	}
+
+	return NULL;
+}
+
+int main()
+{
+	pthread_mutexattr_t mutex_attr;
+	pthread_mutexattr_init(&mutex_attr);
+	pthread_mutexattr_settype(&mutex_attr, PTHREAD_MUTEX_ERRORCHECK);
+	pthread_mutex_init(&mymutex, &mutex_attr);
+
+	int ret = pthread_mutex_lock(&mymutex);
+	printf("ret = %d\n", ret);
+
+	//创建5个工作线程
+	pthread_t threadID[5];
+	for (int i = 0; i < 5; ++i)
+	{
+		pthread_create(&threadID[i], NULL, worker_thread, NULL);
+	}
+
+	for (int i = 0; i < 5; ++i)
+	{
+		pthread_join(threadID[i], NULL);
+	}
+
+	pthread_mutex_destroy(&mymutex);
+	pthread_mutexattr_destroy(&mutex_attr);
+
+	return 0;
+}
+```
+
+编译程序，然后使用gdb运行起来，发现程序并没有有任何输出，按Ctrl + c中断下来，输入info
+thread命令发现工作线程均阻塞在pthread_mutex_lock函数调用处，操作及输出结果如下：
+
+```c++
+[root@localhost testmultithread]# g++ -g -o test8 ConsoleApplication8.cpp -lpthread
+[root@localhost testmultithread]# ./test8
+ret = 0
+thread start, ThreadID: -1821989120
+thread start, ThreadID: -1830381824
+thread start, ThreadID: -1838774528
+thread start, ThreadID: -1847167232
+thread start, ThreadID: -1813596416
+^C
+[root@localhost testmultithread]# gdb test8
+Reading symbols from /root/testmultithread/test8...done.
+(gdb) r
+Starting program: /root/testmultithread/test8 
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib64/libthread_db.so.1".
+ret = 0
+[New Thread 0x7ffff6fd2700 (LWP 3276)]
+thread start, ThreadID: -151181568
+[New Thread 0x7ffff67d1700 (LWP 3277)]
+thread start, ThreadID: -159574272
+[New Thread 0x7ffff5fd0700 (LWP 3278)]
+thread start, ThreadID: -167966976
+[New Thread 0x7ffff57cf700 (LWP 3279)]
+thread start, ThreadID: -176359680
+[New Thread 0x7ffff4fce700 (LWP 3280)]
+thread start, ThreadID: -184752384
+^C
+Program received signal SIGINT, Interrupt.
+0x00007ffff7bc7f47 in pthread_join () from /lib64/libpthread.so.0
+Missing separate debuginfos, use: debuginfo-install glibc-2.17-260.el7.x86_64 libgcc-4.8.5-36.el7.x86_64 libstdc++-4.8.5-36.el7.x86_64
+(gdb) bt
+#0  0x00007ffff7bc7f47 in pthread_join () from /lib64/libpthread.so.0
+#1  0x00000000004009e9 in main () at ConsoleApplication8.cpp:50
+(gdb) inf threads
+  Id   Target Id         Frame 
+  6    Thread 0x7ffff4fce700 (LWP 3280) "test8" 0x00007ffff7bcd4ed in __lll_lock_wait () from /lib64/libpthread.so.0
+  5    Thread 0x7ffff57cf700 (LWP 3279) "test8" 0x00007ffff7bcd4ed in __lll_lock_wait () from /lib64/libpthread.so.0
+  4    Thread 0x7ffff5fd0700 (LWP 3278) "test8" 0x00007ffff7bcd4ed in __lll_lock_wait () from /lib64/libpthread.so.0
+  3    Thread 0x7ffff67d1700 (LWP 3277) "test8" 0x00007ffff7bcd4ed in __lll_lock_wait () from /lib64/libpthread.so.0
+  2    Thread 0x7ffff6fd2700 (LWP 3276) "test8" 0x00007ffff7bcd4ed in __lll_lock_wait () from /lib64/libpthread.so.0
+* 1    Thread 0x7ffff7fee740 (LWP 3272) "test8" 0x00007ffff7bc7f47 in pthread_join () from /lib64/libpthread.so.0
+(gdb)
+```
+
+通过上面的实验，如果互斥体的属性是PTHREAD_MUTEX_ERRORCHECK，当前线程重复调用pthread_mutex_lock会直接返回EDEADLOCK，其他线程如果对这个互斥体再次调用pthread_mutex_lock会阻塞在该函数的调用处。
+
+- PTHREAD_MUTEX_RECURSIVE（可重入锁）
+
+该属性允许同一个线程对其持有的互斥体重复加锁，每成功调用pthread_mutex_lock一次，该互斥体对象的锁引用计数就会增加1，相反，每成功调用pthread_mutex_unlock一次，锁引用计数就会减少1。当锁引用计数值为0时，允许其他线程获得该锁，否则当其他线程调用pthread_mutex_lock尝试获取锁时，会阻塞在pthread_mutex_lock调用处。
+
+总结下Linux下的互斥体对象的使用要点：
+
+1. 虽然上文同一个线程对一个互斥体对象反复进行加锁，但实际开发中，我们需要用到这种场景的情形非常少。
+
+2. 与Windows的临界区对象一样，一些有很多出口的逻辑中，为了避免因忘记调用pthread_mutex_unlock出现死锁或者在逻辑出口处有大量解锁的重复代码出现，建议使用
+   RAII 技术将互斥体对象封装起来。
+
+## Linux的信号量
+
+信号量代表一定的资源数量，可以根据当前资源的数量按需唤醒指定数量的资源消费者线程，资源消费者线程一旦获取信号量后会让资源数量减少指定数目，如果资源数量减少为
+0，则消费者线程将全部处于挂起状态；当有新的资源到来时，消费者线程将继续被唤醒。
+
+信号量含有“资源有多份，可以同时被多个线程访问”的意味。
+
+Linux信号量常用的一组API函数是：
+
+```c++
+#include <semaphore.h>
+int sem_init(sem_t* sem, int pshared, unsigned int value);
+int sem_destroy(sem_t* sem);
+int sem_post(sem_t* sem);
+int sem_wait(sem_t* sem);
+int sem_trywait(sem_t* sem);
+int sem_timedwait(sem_t* sem, const struct timespec* abs_timeout);
+```
+
+-
+函数sem_init用于初始化一个信号量，第一个参数sem传入需要初始化的信号量对象的地址；第二个参数pshared表示该信号量是否可以被共享，取值为0表示该信号量只能在同一个进程多个线程之间共享，取值为非0表示可以在多个进程之间共享；第三个参数
+value用于设置信号量初始状态下资源的数量。函数sem_init函数调用成功返回0， 失败返回-1，实际编码中只要我们的写法得当一般不用关心该函数的返回值。
+
+- 函数sem_destroy用于销毁一个信号量。
+
+- 函数sem_post将信号量的资源计数递增1，并解锁该信号量对象，这样其他由于使用sem_wait被阻塞的线程会被唤醒。
+
+-
+如果当前信号量资源计数为0，函数sem_wait会阻塞调用线程；直到信号量对象的资源计数大于0时被唤醒，唤醒后将资源计数递减1，然后立即返回；函数sem_trywait是函数sem_wait的非阻塞版本，如果当前信号量对象的资源计数等于0，sem_trywait会立即返回不会阻塞调用线程，返回值是-1，错误码errno被设置成EAGAIN；函数sem_timedwait是带有等待时间的版本，等待时间在第二个参数abs_timeout中设置，这是个结构体类型，其定义如下：
+
+```c++
+struct timespec
+{
+	time_t tv_sec;      /* 秒 */
+	long   tv_nsec;     /* 纳秒, 取值范围是 [0～999999999] */
+};
+```
+
+sem_timedwait在参数abs_timeout设置的时间内等待信号量对象的资源计数大于0，否则超时返回，返回值为-1，错误码errno是ETIMEDOUT。当使用sem_timedwait时，参数abs_timeout不能设置为NULL，否则程序会在调用sem_timedwait处产生崩溃。对于参数abs_timeout，正如其名字暗示的，这是一个absolute
+time（绝对时间），也就是说，如果打算让函数等待5秒，那么应该先得到当前系统的时间，然后加上5秒计算出最终的时间作为参数abs_timeout的值。
+
+使用以上几个函数还有几个需要注意的地方：
+
+1.
+sem_wait、sem_trywait、sem_timedwait函数将资源计数递减一时会同时锁定信号量对象，因此当资源计数为1时，如果有多个线程调用sem_wait等函数等待该信号量时，只会有一个线程被唤醒。sem_wait函数返回时，会释放对该信号量的锁。
+
+2. sem_wait、sem_trywait、sem_timedwait函数调用成功后返回值均为0，调用失败返回-1，可以通过错误码errno获得失败原因。
+
+3. sem_wait、sem_trywait、sem_timedwait可以被Linux信号中断，被信号中断后，函数立即返回，返回值是-1，错误码errno为EINTR。
+
+4. 虽然上述函数名没有以pthread_作为前缀，但是实际使用这个系列的函数时仍然需要链接pthread库。
+
+我们看一个信号量的具体使用示例：
+
+```c++
+#include <pthread.h>
+#include <errno.h>
+#include <unistd.h>
+#include <list>
+#include <semaphore.h>
+#include <iostream>
+
+class Task
+{
+public:
+	Task(int taskID)
+	{
+		this->taskID = taskID;
+	}
+	
+	void doTask()
+	{
+		std::cout << "handle a task, taskID: " << taskID << ", threadID: " << pthread_self() << std::endl; 
+	}
+	
+private:
+	int taskID;
+};
+
+pthread_mutex_t  mymutex;
+std::list<Task*> tasks;
+sem_t            mysemaphore;
 
 
+void* consumer_thread(void* param)
+{	
+	Task* pTask = NULL;
+	while (true)
+	{
+		if (sem_wait(&mysemaphore) != 0)
+			continue;
+		
+		if (tasks.empty())
+			continue;
+		
+		pthread_mutex_lock(&mymutex);	
+		pTask = tasks.front();
+		tasks.pop_front();
+		pthread_mutex_unlock(&mymutex);
+		
+		pTask->doTask();
+		delete pTask;
+	}
+	
+	return NULL;
+}
+
+void* producer_thread(void* param)
+{
+	int taskID = 0;
+	Task* pTask = NULL;
+	
+	while (true)
+	{
+		pTask = new Task(taskID);
+			
+		pthread_mutex_lock(&mymutex);
+		tasks.push_back(pTask);
+		std::cout << "produce a task, taskID: " << taskID << ", threadID: " << pthread_self() << std::endl; 
+		
+		pthread_mutex_unlock(&mymutex);
+		
+		//释放信号量，通知消费者线程
+		sem_post(&mysemaphore);
+		
+		taskID ++;
+
+		//休眠1秒
+		sleep(1);
+	}
+	
+	return NULL;
+}
+
+int main()
+{
+	pthread_mutex_init(&mymutex, NULL);
+	//初始信号量资源计数为0
+	sem_init(&mysemaphore, 0, 0);
+
+	//创建5个消费者线程
+	pthread_t consumerThreadID[5];
+	for (int i = 0; i < 5; ++i)
+	{
+		pthread_create(&consumerThreadID[i], NULL, consumer_thread, NULL);
+	}
+	
+	//创建一个生产者线程
+	pthread_t producerThreadID;
+	pthread_create(&producerThreadID, NULL, producer_thread, NULL);
+
+	pthread_join(producerThreadID, NULL);
+	
+	for (int i = 0; i < 5; ++i)
+	{
+		pthread_join(consumerThreadID[i], NULL);
+	}
+	
+	sem_destroy(&mysemaphore);
+	pthread_mutex_destroy(&mymutex);
+
+	return 0;
+}
+```
+
+以上代码中我们创建1个生产者线程和5个消费者线程，初始信号量计数为0代表开始没有可执行任务，所以5个消费线程均阻塞在sem_wait调用处，接着生产者每隔1秒产生一个任务，然后通过调用sem_post将信号量资源计数增加1，此时其中一个线程会被唤醒，然后我们从任务队列中取出任务，执行任务，由于任务对象是new出来的，我们需要delete掉以避免内存泄露。
+
+有读者可能会觉得奇怪：在调用sem_wait和sem_post时会对信号量对象进行加锁和解锁，为什么这里还需要使用一个互斥体？这个互斥体是用来保护队列tasks的，因为多个线程会同时读写之。这个例子类似于银行里多个客户等待柜台有空闲办理取钱业务，每次有空闲的柜台，就可以告诉客户，但是多人同时取钱时，银行的资金总账户增减一定是原子性的。
+
+编译并生成可执行文件semaphore ，然后运行之，输出结果如下：
+
+```shell
+[root@localhost testsemaphore]# g++ -g -o semaphore semaphore.cpp -lpthread
+[root@localhost testsemaphore]# ./semaphore 
+produce a task, taskID: 0, threadID: 140055260595968
+handle a task, taskID: 0, threadID: 140055277381376
+produce a task, taskID: 1, threadID: 140055260595968
+handle a task, taskID: 1, threadID: 140055277381376
+produce a task, taskID: 2, threadID: 140055260595968
+handle a task, taskID: 2, threadID: 140055268988672
+produce a task, taskID: 3, threadID: 140055260595968
+handle a task, taskID: 3, threadID: 140055294166784
+produce a task, taskID: 4, threadID: 140055260595968
+handle a task, taskID: 4, threadID: 140055302559488
+produce a task, taskID: 5, threadID: 140055260595968
+handle a task, taskID: 5, threadID: 140055285774080
+produce a task, taskID: 6, threadID: 140055260595968
+handle a task, taskID: 6, threadID: 140055277381376
+produce a task, taskID: 7, threadID: 140055260595968
+handle a task, taskID: 7, threadID: 140055268988672
+produce a task, taskID: 8, threadID: 140055260595968
+handle a task, taskID: 8, threadID: 140055294166784
+produce a task, taskID: 9, threadID: 140055260595968
+handle a task, taskID: 9, threadID: 140055302559488
+...更多输出结果省略...
+```
+
+## Linux条件变量
+
+有人说Linux条件变量（Condition Variable）是最不会用错的一种线程同步对象，确实是这样，但这必须建立在对条件变量熟练使用的基础之上。我们先来讨论一下为什么会存在条件变量这样一种机制。
+
+### 为什么需要使用条件变量？
+
+实际应用中，我们常常会有类似如下需求：
+
+```c++
+//以下是伪码，m的类型是pthread_mutex_t，并且已经初始化过了
+int WaitForTrue()
+{
+pthread_mutex_lock(&m);
+while (condition is false)        //条件不满足
+{
+pthread_mutex_unlock(&m);    //解锁等待其他线程改变condition
+sleep(n);                    //睡眠n秒
+//n秒后再次加锁验证条件是否满足
+pthread_mutex_lock(&m);
+}
+
+return 1;
+}
+```
+
+这段逻辑的用途是我们需要反复判断一个多线程共享条件是否满足，一直到该条件满足为止，由于该条件被多个线程操作因此每次判断之前我们都需要进行加锁操作，判断完毕后需要进行解锁操作。但是上述逻辑存在严重的效率问题，假设我们解锁离开临界区后，此时由于其他线程修改了条件导致条件满足了，此时程序仍然需要睡眠n秒后才能得到反馈。因此我们需要这样一种机制：
+
+某个线程A在条件不满足的情况下，主动让出互斥体，让其他线程去折腾，线程在此处等待，等待条件的满足；一旦条件满足，线程就可以被立刻唤醒。线程A之所以可以安心等待，依赖的是其他线程的协作，它确信会有一个线程在发现条件满足以后，将向它发送信号，并且让出互斥体。如果其他线程不配合（不发信号，不让出互斥体），这个主动让出互斥体并等待事件发生的线程A就真的要等到花儿都谢了。
+
+这个例子解释了为什么需要条件等待，但是条件等待还不是条件变量的全部功能。
+
+### 条件变量为什么要与互斥体对象结合
+
+很多第一次学习Linux条件变量的读者会觉得困惑：为什么条件变量一定要与一个互斥体对象结合使用？假设条件变量不与互斥体对象结合，我们来看下是什么效果，以下是伪代码：
+
+```c++
+1 //m的类型是pthread_mutex_t，并且已经初始化过了，cv是条件变量
+2 pthread_mutex_lock(&m)
+3 while(condition_is_false)
+4 {
+5     pthread_mutex_unlock(&m);
+6     //解锁之后，等待之前，可能条件已经满足，信号已经发出，但是该信号可能会被错过
+7     cond_wait(&cv);
+8     pthread_mutex_lock(&m);
+9 }
+```
+
+上述代码中，假设线程A执行完第5行代码 pthread_mutex_unlock(&m);
+后CPU时间片被剥夺，此时另外一个线程B获得该互斥体对象m，然后发送条件信号，等线程A重新获得时间片后，由于该信号已经被错过了，这样可能会导致线程A在第7行
+cond_wait(&cv); 无限阻塞下去。
+
+造成这个问题的根源是释放互斥体对象与条件变量等待唤醒不是原子操作，即解锁和等待这两个步骤必须是位于同一个原子操作中才能确保cond_wait唤醒之前不会有其他线程获得这个互斥体对象。
+
+### 条件变量的使用
+
+条件变量的初始化和销毁可以使用如下API函数：
+
+```c++
+int pthread_cond_init(pthread_cond_t* cond, const pthread_condattr_t* attr);
+int pthread_cond_destroy(pthread_cond_t* cond);
+```
+
+在Linux系统中pthread_cond_t即是条件变量的类型，当然和前面介绍的互斥体一样，也可以使用如下方式去初始化一个条件变量：
+
+```c++
+pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
+```
+
+等待条件变量的满足可以使用如下API函数：
+
+```c++
+int pthread_cond_wait(pthread_cond_t* restrict cond, pthread_mutex_t* restrict mutex);
+int pthread_cond_timedwait(pthread_cond_t* restrict cond, pthread_mutex_t* restrict mutex, const struct timespec* restrict abstime);
+```
+
+如果条件变量等待的条件没有满足，则调用pthread_cond_wait的线程会一直等待下去；pthread_cond_timedwait是pthread_cond_wait的非阻塞版本，它会在指定时间内等待条件满足，超过参数abstime设置的时间后pthread_cond_timedwait函数会立即返回。
+
+注意：对于参数abstime，和上一节介绍sem_timedwait函数的超时参数abs_timeout一样，这同样是一个absolute
+time（绝对时间），设置方法与sem_timedwait函数的超时参数abs_timeout设置方法一样。
+
+因调用pthread_cond_wait等待的线程可以被以下API函数唤醒：
+
+```c++
+int pthread_cond_signal(pthread_cond_t* cond);
+int pthread_cond_broadcast(pthread_cond_t* cond);
+```
+
+pthread_cond_signal一次唤醒一个线程，如果有多个线程调用pthread_cond_wait等待，具体哪个线程被唤醒是不确定的（可以认为是随机的）；pthread_cond_broadcast可以同时唤醒所有调用pthread_cond_wait等待的线程。前者相当于发送一次条件通知，后者广播一次条件通知。函数调用成功，pthread_cond_signal和pthread_cond_broadcast均返回
+0，反之均返回具体错误码值。
+
+我们将前文中介绍信号量的示例代码用条件变量来改写下：
+
+```c++
+#include <pthread.h>
+#include <errno.h>
+#include <unistd.h>
+#include <list>
+#include <semaphore.h>
+#include <iostream>
+
+class Task
+{
+public:
+	Task(int taskID)
+	{
+		this->taskID = taskID;
+	}
+	
+	void doTask()
+	{
+		std::cout << "handle a task, taskID: " << taskID << ", threadID: " << pthread_self() << std::endl; 
+	}
+	
+private:
+	int taskID;
+};
+
+pthread_mutex_t  mymutex;
+std::list<Task*> tasks;
+pthread_cond_t   mycv;
+
+void* consumer_thread(void* param)
+{	
+	Task* pTask = NULL;
+	while (true)
+	{
+		pthread_mutex_lock(&mymutex);
+		while (tasks.empty())
+		{				
+			//如果获得了互斥锁，但是条件不合适的话，pthread_cond_wait会释放锁，不往下执行。
+			//当发生变化后，条件合适，pthread_cond_wait将直接获得锁。
+			pthread_cond_wait(&mycv, &mymutex);
+		}
+		
+		pTask = tasks.front();
+		tasks.pop_front();
+
+		pthread_mutex_unlock(&mymutex);
+		
+		if (pTask == NULL)
+			continue;
+
+		pTask->doTask();
+		delete pTask;
+		pTask = NULL;		
+	}
+	
+	return NULL;
+}
+
+void* producer_thread(void* param)
+{
+	int taskID = 0;
+	Task* pTask = NULL;
+	
+	while (true)
+	{
+		pTask = new Task(taskID);
+			
+		pthread_mutex_lock(&mymutex);
+		tasks.push_back(pTask);
+		std::cout << "produce a task, taskID: " << taskID << ", threadID: " << pthread_self() << std::endl; 
+		
+		pthread_mutex_unlock(&mymutex);
+		
+		//释放信号量，通知消费者线程
+		pthread_cond_signal(&mycv);
+		
+		taskID ++;
+
+		//休眠1秒
+		sleep(1);
+	}
+	
+	return NULL;
+}
+
+int main()
+{
+	pthread_mutex_init(&mymutex, NULL);
+	pthread_cond_init(&mycv, NULL);
+
+	//创建5个消费者线程
+	pthread_t consumerThreadID[5];
+	for (int i = 0; i < 5; ++i)
+	{
+		pthread_create(&consumerThreadID[i], NULL, consumer_thread, NULL);
+	}
+	
+	//创建一个生产者线程
+	pthread_t producerThreadID;
+	pthread_create(&producerThreadID, NULL, producer_thread, NULL);
+
+	pthread_join(producerThreadID, NULL);
+	
+	for (int i = 0; i < 5; ++i)
+	{
+		pthread_join(consumerThreadID[i], NULL);
+	}
+	
+	pthread_cond_destroy(&mycv);
+	pthread_mutex_destroy(&mymutex);
+
+	return 0;
+}
+```
+
+编译并执行上述程序，输出结果如下：
+
+```shell
+[root@localhost testsemaphore]# g++ -g -o cv cv.cpp -lpthread
+[root@localhost testsemaphore]# ./cv
+produce a task, taskID: 0, threadID: 140571200554752
+handle a task, taskID: 0, threadID: 140571242518272
+produce a task, taskID: 1, threadID: 140571200554752
+handle a task, taskID: 1, threadID: 140571225732864
+produce a task, taskID: 2, threadID: 140571200554752
+handle a task, taskID: 2, threadID: 140571208947456
+produce a task, taskID: 3, threadID: 140571200554752
+handle a task, taskID: 3, threadID: 140571242518272
+produce a task, taskID: 4, threadID: 140571200554752
+handle a task, taskID: 4, threadID: 140571234125568
+produce a task, taskID: 5, threadID: 140571200554752
+handle a task, taskID: 5, threadID: 140571217340160
+produce a task, taskID: 6, threadID: 140571200554752
+handle a task, taskID: 6, threadID: 140571225732864
+produce a task, taskID: 7, threadID: 140571200554752
+handle a task, taskID: 7, threadID: 140571208947456
+produce a task, taskID: 8, threadID: 140571200554752
+handle a task, taskID: 8, threadID: 140571242518272
+...更多输出结果省略...
+```
+
+条件变量最关键的一个地方就是需要清楚地记得pthread_cond_wait在条件满足与不满足时的两种行为，这是难点也是重点：
+
+-
+当pthread_cond_wait函数阻塞时，它会释放其绑定的互斥体，并阻塞线程，因此在调用该函数前应该对互斥体有个加锁操作（上述代码的的pthread_mutex_lock(
+&mymutex);）。
+
+- 当收到条件信号时，
+  pthread_cond_wait会返回并对其绑定的互斥体进行加锁，因此在其下面一定有个对互斥体进行解锁的操作（上述代码的pthread_mutex_unlock(
+  &mymutex);）。
+
+### 条件变量的虚假唤醒
+
+上面将互斥体和条件变量配合使用的示例代码中有个很有意思的地方，就是使用了while语句，醒来 之后要再次判断条件是否满足。
+
+```c++
+while (tasks.empty())
+{				
+	pthread_cond_wait(&mycv, &mymutex);
+}
+```
+
+为什么不写成：
+
+```c++
+if (tasks.empty())
+{				
+	pthread_cond_wait(&mycv, &mymutex);
+}
+```
+
+答案是不得不如此。因为某次操作系统唤醒pthread_cond_wait时tasks.empty()可能仍然为
+true，言下之意就是操作系统可能会在一些情况下唤醒条件变量，也就是说存在没有其他线程向条件变量发送信号，但等待此条件
+变量的线程也有可能会醒来的情形。我们将条件变量的这种行为称之为 虚假唤醒（spurious wakeup）。因此将条件（判断 tasks.empty()
+为true）放在一个while循环中意味着光唤醒条件变量不行，还必须满足条件，程序才能继续执行正常的逻辑。
+
+这看起来像是个bug，但它在Linux系统中是实实在在存在的。为什么会存在虚假唤醒呢？一个原因是
+pthread_cond_wait是futex系统调用，属于阻塞型的系统调用，当系统调用被信号中断的时候，会返回 **-1**
+，并且把errno错误码置EINTR。很多这种系统调用为了防止被信号中断都会重启系统调用（即再次调用一次这个函数），代码如下：
+
+```c++
+pid_t r_wait(int *stat_loc)
+{
+    int retval;
+    //wait函数因为被信号中断导致调用失败会返回-1，错误码是EINTR  
+    //注意：这里的while循环体是一条空语句
+    while(((retval = wait(stat_loc)) == -1 && (errno == EINTR));
+    
+    return retval;
+}
+```
+
+但是pthread_cond_wait用途有点不一样，假设pthread_cond_wait函数被信号中断了，在pthread_cond_wait返回之后，到重新调用之前，pthread_cond_signal或pthread_cond_broadcast可能已经调用过。一旦错失，可能由于条件信号不再产生，再次调用pthread_cond_wait将导致程序无限制地等待下去。为了避免这种情况，宁可虚假唤醒，也不能再次调用pthread_cond_wait，以免陷入无穷的等待中。
+
+除了上面的信号因素外，还存在以下情况：条件满足了发送信号，但等到调用pthread_cond_wait的线程得到CPU时间片时，条件又再次不满足了。
+
+好在无论是哪种情况，醒来之后再次测试条件是否满足就可以解决虚假等待的问题。这就是使用 while 循环来判断条件，而不是使用 if
+语句的原因。
+
+### 条件变量信号丢失问题
+
+如果一个条件变量信号产生时（调用pthread_cond_signal或
+pthread_cond_broadcast），没有相关的线程调用pthread_cond_wait捕获该信号，那么该信号就会永久性地丢失了，再次调用pthread_cond_wait会导致永久性的阻塞。这种情况在设计那些条件变量信号只会产生一次的逻辑中尤其需要注意。举个例子，假设现在某个程序中有一批等待条件变量的线程，和一个只产生一次条件变量信号的线程。为了让等待条件变量的线程能够正常运行而不阻塞，编写这段逻辑时，一定要确保等待的线程在产生条件变量信号的线程发送条件信号之前调用pthread_cond_wait。
+
+这和生活中的很多例子一样，即许多事情你只有一次机会，你必须提前准备好再去尝试这次机会，这个机会不会等待你的准备，一旦你错过，就不会再有第二次机会了。
+
+条件变量是最常用的一种多线程编程同步技术之一。
+
+## Linux读写锁
+
+### 1. 读写锁的应用场景
+
+实际应用中，很多时候对共享变量的访问有以下特点：
+
+> 大多数情况下线程只是读取共享变量的值，并不修改，只有极少数情况下，线程才会真正地修改共享变量的值。
+
+对于这种情况，读请求之间是无需同步的，它们之间的并发访问是安全的。然而写请求必须锁住读请求和其他写请求。
+
+这种情况在实际中是存在的，如读取一个全局对象的状态属性，大多数情况下这个状态属性值是不会变化的，偶尔才会出现被修改的情况。如果使用互斥体，完全阻止读请求并发，则会造成性能的损失。
+
+### 2. 读写锁使用方法
+
+读写锁在Linux系统中使用类型pthread_rwlock_t表示，读写锁的初始化和销毁使用如下系统API函数：
+
+```c++
+#include <pthread.h>
+
+int pthread_rwlock_init(pthread_rwlock_t* rwlock, const pthread_rwlockattr_t* attr);
+int pthread_rwlock_destroy(pthread_rwlock_t* rwlock);
+```
+
+参数rwlock是需要初始化和销毁的读写锁对象的地址，
+参数attr用于设置读写锁的属性，一般设置为NULL，表示使用默认属性。函数调用成功返回0，调用失败返回非0值，你可以通过检测错误码errno获取错误原因。
+
+当然，如果不需要动态创建或者设置非默认属性的读写锁对象，也可以使用如下语法初始化一个读写锁对象：
+
+> pthread_rwlock_t myrwlock = PTHREAD_RWLOCK_INITIALIZER;
+
+下面是三个请求读锁的系统API接口：
+
+```c++
+int pthread_rwlock_rdlock(pthread_rwlock_t* rwlock);
+int pthread_rwlock_tryrdlock(pthread_rwlock_t* rwlock);
+int pthread_rwlock_timedrdlock(pthread_rwlock_t* rwlock, const struct timespec* abstime);
+```
+
+而下面三个请求写锁的系统API接口：
+
+```c++
+int pthread_rwlock_wrlock(pthread_rwlock_t* rwlock);
+int pthread_rwlock_trywrlock(pthread_rwlock_t* rwlock);
+int pthread_rwlock_timedwrlock(pthread_rwlock_t* rwlock, const struct timespec* abstime);
+```
+
+读锁用于共享模式：
+
+- 如果当前读写锁已经被某线程以读模式占有了，其他线程调用pthread_rwlock_rdlock（请求读锁）会立刻获得读锁；
+
+- 如果当前读写锁已经被某线程以读模式占有了，其他线程调用pthread_rwlock_wrlock（请求写锁）会陷入阻塞；
+
+写锁用的是独占模式：
+
+-
+如果当前读写锁被某线程以写模式占有，无论调用pthread_rwlock_rdlock还是pthread_rwlock_wrlock都会陷入阻塞，即写模式下不允许任何读锁请求通过，也不允许任何写锁请求通过，读锁请求和写锁请求都要陷入阻塞，直到线程释放写锁。
+
+可以将上述读写锁逻辑总结成如下表格：
+
+| 锁当前状态/其他线程请求锁类型 | 请求读锁 | 请求写锁 |
+|-----------------|------|------|
+| 无锁              | 通过   | 通过   |
+| 已经获得读锁          | 通过   | 阻止   |
+| 已经获得写锁          | 阻止   | 阻止   |
+
+无论是读锁还是写锁，锁的释放都是一个接口：
+
+> int pthread_rwlock_unlock (pthread_rwlock_t* rwlock);
+
+无论是请求读锁还是写锁，都提供了trylock的功能（pthread_rwlock_tryrdlock和pthread_rwlock_trywrlock），调用线程不会阻塞，而会立即返回。如果能成功获得读锁或者写锁，函数返回 0，如果不能获得读锁或写锁时，函数返回非0值，此时错误码errno是EBUSY。
+
+当然，无论是请求读锁还是写锁都提供了限时等待功能，如果不能获取读写锁，则会陷入阻塞，最多等待到参数abstime设置的时间，如果仍然无法获得锁，则返回，错误码errno是 ETIMEOUT。
 
 
+### 读写锁的属性
+上文介绍pthread_rwlock_init函数时，提到其第二个参数可以设置读写锁的属性，读写锁的属性类型是pthread_rwlockattr_t ，glibc引入了如下接口来查询和改变读写锁的类型：
+
+```c++
+#include <pthread.h>
+
+int pthread_rwlockattr_setkind_np(pthread_rwlockattr_t* attr, int pref);
+int pthread_rwlockattr_getkind_np(const pthread_rwlockattr_t* attr, int* pref);
+```
+
+pthread_rwlockattr_setkind_np的第二个参数pref即设置读写锁的类型，其取值有如下几种：
+```c++
+enum
+{
+    //读者优先(即同时请求读锁和写锁时，请求读锁的线程优先获得锁)
+    PTHREAD_RWLOCK_PREFER_READER_NP, 
+    //不要被名字所迷惑，也是读者优先
+    PTHREAD_RWLOCK_PREFER_WRITER_NP, 
+    //写者优先(即同时请求读锁和写锁时，请求写锁的线程优先获得锁)
+    PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP, 				
+    PTHREAD_RWLOCK_DEFAULT_NP = PTHREAD_RWLOCK_PREFER_READER_NP
+};
+```
+
+当然，为了得到一个有效的pthread_rwlockattr_t对象，需要先调用pthread_rwlockattr_init函数初始化这样一个属性对象，在不需要的时候记得使用pthread_rwlockattr_destroy销毁之：
+
+```c++
+int pthread_rwlockattr_init(pthread_rwlockattr_t* attr);
+int pthread_rwlockattr_destroy(pthread_rwlockattr_t* attr);
+```
+
+以下代码片段演示了如何初始化一个写优先的读写锁：
+
+```c++
+pthread_rwlockattr_t attr;
+pthread_rwlockattr_init(&attr);
+pthread_rwlockattr_setkind_np(&attr, PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP);
+pthread_rwlock_t rwlock;
+pthread_rwlock_init(&rwlock, &attr);
+```
+		
+### 读写锁使用示例
+```c++
+#include <pthread.h>
+#include <unistd.h>
+#include <iostream>
+
+int resourceID = 0;
+pthread_rwlock_t myrwlock;
+
+void* read_thread(void* param)
+{	
+	while (true)
+	{
+		//请求读锁
+		pthread_rwlock_rdlock(&myrwlock);
+
+		std::cout << "read thread ID: " << pthread_self() << ", resourceID: " << resourceID << std::endl;
+				
+		//使用睡眠模拟读线程读的过程消耗了很久的时间
+		sleep(1);
+				
+		pthread_rwlock_unlock(&myrwlock);
+	}
+	
+	return NULL;
+}
+
+void* write_thread(void* param)
+{
+	while (true)
+	{
+		//请求写锁
+		pthread_rwlock_wrlock(&myrwlock);
+
+		++resourceID;
+		std::cout << "write thread ID: " << pthread_self() << ", resourceID: " << resourceID << std::endl;
+				
+		//使用睡眠模拟读线程读的过程消耗了很久的时间
+		sleep(1);
+				
+		pthread_rwlock_unlock(&myrwlock);
+	}
+	
+	return NULL;
+}
+
+int main()
+{
+	pthread_rwlock_init(&myrwlock, NULL);
+
+	//创建5个请求读锁线程
+	pthread_t readThreadID[5];
+	for (int i = 0; i < 5; ++i)
+	{
+		pthread_create(&readThreadID[i], NULL, read_thread, NULL);
+	}
+	
+	//创建一个请求写锁线程
+	pthread_t writeThreadID;
+	pthread_create(&writeThreadID, NULL, write_thread, NULL);
+
+	pthread_join(writeThreadID, NULL);
+	
+	for (int i = 0; i < 5; ++i)
+	{
+		pthread_join(readThreadID[i], NULL);
+	}
+	
+	pthread_rwlock_destroy(&myrwlock);
+
+	return 0;
+}
+```
+
+上述程序中创建五个请求读锁的“读”线程和一个请求写锁的“写”线程，共享的资源是一个整形变量 resourceID，我们编译并执行得到输出结果：
+```shell
+[root@localhost testmultithread]# g++ -g -o rwlock rwlock.cpp -lpthread
+[root@localhost testmultithread]# ./rwlock
+read thread ID: 140575861593856, resourceID: 0
+read thread ID: 140575878379264, resourceID: 0
+read thread ID: 140575853201152, resourceID: 0
+read thread ID: 140575869986560, resourceID: 0
+read thread ID: 140575886771968, resourceID: 0
+read thread ID: read thread ID: read thread ID: read thread ID: 140575861593856140575886771968, resourceID: 0, resourceID: 
+0
+140575878379264read thread ID: 140575869986560, resourceID: 0
+, resourceID: 0
+140575853201152, resourceID: 0
+read thread ID: read thread ID: read thread ID: 140575861593856140575853201152140575886771968, resourceID: , resourceID: 0, resourceID: 00
 
 
+read thread ID: 140575869986560, resourceID: 0
+这里省略更多输出结果
+```
 
+上述输出结果，我们验证了两个结论：
 
+- 由于读写锁对象myrwlock使用了默认属性，其行为是请求读锁的线程优先获得到锁，请求写锁的线程write_thread很难获得锁的机会，因此结果中基本没有请求写锁线程的输出结果。
 
+- 由于多个请求读锁的线程read_thread可以自由获得读锁，且代码15行（std::cout << "read thread ID: " << pthread_self() << ", resourceID: " << resourceID << std::endl;）的输出不是原子性的，所以多个“读”线程的输出可能会交替，出现“错乱”现象。
 
+我们将读写锁对象myrwlock的属性修改成请求写锁优先，再来试一试：
+```c++
+#include <pthread.h>
+#include <unistd.h>
+#include <iostream>
 
+int resourceID = 0;
+pthread_rwlock_t myrwlock;
 
+void* read_thread(void* param)
+{	
+	while (true)
+	{
+		//请求读锁
+		pthread_rwlock_rdlock(&myrwlock);
+
+		std::cout << "read thread ID: " << pthread_self() << ", resourceID: " << resourceID << std::endl;
+				
+		//使用睡眠模拟读线程读的过程消耗了很久的时间
+		sleep(1);
+				
+		pthread_rwlock_unlock(&myrwlock);
+	}
+	
+	return NULL;
+}
+
+void* write_thread(void* param)
+{
+	while (true)
+	{
+		//请求写锁
+		pthread_rwlock_wrlock(&myrwlock);
+
+		++resourceID;
+		std::cout << "write thread ID: " << pthread_self() << ", resourceID: " << resourceID << std::endl;
+				
+		//使用睡眠模拟读线程读的过程消耗了很久的时间
+		sleep(1);
+		
+		pthread_rwlock_unlock(&myrwlock);
+	}
+	
+	return NULL;
+}
+
+int main()
+{
+	pthread_rwlockattr_t attr;
+	pthread_rwlockattr_init(&attr);
+	//设置成请求写锁优先
+	pthread_rwlockattr_setkind_np(&attr, PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP);
+	pthread_rwlock_init(&myrwlock, &attr);
+
+	//创建5个请求读锁线程
+	pthread_t readThreadID[5];
+	for (int i = 0; i < 5; ++i)
+	{
+		pthread_create(&readThreadID[i], NULL, read_thread, NULL);
+	}
+	
+	//创建一个请求写锁线程
+	pthread_t writeThreadID;
+	pthread_create(&writeThreadID, NULL, write_thread, NULL);
+
+	pthread_join(writeThreadID, NULL);
+	
+	for (int i = 0; i < 5; ++i)
+	{
+		pthread_join(readThreadID[i], NULL);
+	}
+	
+	pthread_rwlock_destroy(&myrwlock);
+
+	return 0;
+}
+```
+
+编译程序并运行，输出结果如下：
+```shell
+[root@localhost testmultithread]# g++ -g -o rwlock2 rwlock2.cpp -lpthread
+[root@localhost testmultithread]# ./rwlock2
+read thread ID: 140122217539328, resourceID: 0
+read thread ID: 140122242717440, resourceID: 0
+read thread ID: 140122209146624, resourceID: 0
+write thread ID: 140122200753920, resourceID: 1
+read thread ID: 140122234324736, resourceID: 1
+write thread ID: 140122200753920, resourceID: 2
+write thread ID: 140122200753920, resourceID: 3
+write thread ID: 140122200753920, resourceID: 4
+write thread ID: 140122200753920, resourceID: 5
+write thread ID: 140122200753920, resourceID: 6
+write thread ID: 140122200753920, resourceID: 7
+write thread ID: 140122200753920, resourceID: 8
+write thread ID: 140122200753920, resourceID: 9
+write thread ID: 140122200753920, resourceID: 10
+write thread ID: 140122200753920, resourceID: 11
+write thread ID: 140122200753920, resourceID: 12
+write thread ID: 140122200753920, resourceID: 13
+read thread ID: 140122217539328, resourceID: 13
+write thread ID: 140122200753920, resourceID: 14
+write thread ID: 140122200753920, resourceID: 15
+write thread ID: 140122200753920, resourceID: 16
+write thread ID: 140122200753920, resourceID: 17
+write thread ID: 140122200753920, resourceID: 18
+write thread ID: 140122200753920, resourceID: 19
+write thread ID: 140122200753920, resourceID: 20
+write thread ID: 140122200753920, resourceID: 21
+write thread ID: 140122200753920, resourceID: 22
+write thread ID: 140122200753920, resourceID: 23
+...更多输出结果省略...
+```
+
+由于将myrwlock设置成请求写锁优先，上述结果中几乎都是write_thread的输出结果。
+
+我们将write_thread中的sleep语句挪到后面，增加请求写锁线程的睡眠时间，再看看执行结果。
+
+```c++
+#include <pthread.h>
+#include <unistd.h>
+#include <iostream>
+
+int resourceID = 0;
+pthread_rwlock_t myrwlock;
+
+void* read_thread(void* param)
+{	
+	while (true)
+	{
+		//请求读锁
+		pthread_rwlock_rdlock(&myrwlock);
+
+		std::cout << "read thread ID: " << pthread_self() << ", resourceID: " << resourceID << std::endl;
+				
+		//使用睡眠模拟读线程读的过程消耗了很久的时间
+		sleep(1);
+				
+		pthread_rwlock_unlock(&myrwlock);
+	}
+	
+	return NULL;
+}
+
+void* write_thread(void* param)
+{
+	while (true)
+	{
+		//请求写锁
+		pthread_rwlock_wrlock(&myrwlock);
+
+		++resourceID;
+		std::cout << "write thread ID: " << pthread_self() << ", resourceID: " << resourceID << std::endl;
+						
+		pthread_rwlock_unlock(&myrwlock);
+		
+		//放在这里增加请求读锁线程获得锁的几率
+		sleep(1);
+	}
+	
+	return NULL;
+}
+
+int main()
+{
+	pthread_rwlockattr_t attr;
+	pthread_rwlockattr_init(&attr);
+	//设置成请求写锁优先
+	pthread_rwlockattr_setkind_np(&attr, PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP);
+	pthread_rwlock_init(&myrwlock, &attr);
+
+	//创建5个请求读锁线程
+	pthread_t readThreadID[5];
+	for (int i = 0; i < 5; ++i)
+	{
+		pthread_create(&readThreadID[i], NULL, read_thread, NULL);
+	}
+	
+	//创建一个请求写锁线程
+	pthread_t writeThreadID;
+	pthread_create(&writeThreadID, NULL, write_thread, NULL);
+
+	pthread_join(writeThreadID, NULL);
+	
+	for (int i = 0; i < 5; ++i)
+	{
+		pthread_join(readThreadID[i], NULL);
+	}
+	
+	pthread_rwlock_destroy(&myrwlock);
+
+	return 0;
+}
+```
+
+再次编译程序并执行，得到输出结果：
+```shell
+[root@localhost testmultithread]# g++ -g -o rwlock3 rwlock3.cpp -lpthread
+[root@localhost testmultithread]# ./rwlock3
+read thread ID: 140315524790016, resourceID: 0
+read thread ID: 140315549968128, resourceID: 0
+read thread ID: 140315541575424, resourceID: 0
+write thread ID: 140315508004608, resourceID: 1
+read thread ID: 140315549968128, resourceID: 1
+read thread ID: 140315541575424, resourceID: 1
+read thread ID: 140315524790016, resourceID: 1
+read thread ID: 140315516397312, resourceID: 1
+read thread ID: 140315533182720, resourceID: 1
+write thread ID: 140315508004608, resourceID: 2
+read thread ID: 140315541575424, resourceID: 2
+read thread ID: 140315524790016, resourceID: 2
+read thread ID: 140315533182720, resourceID: 2
+read thread ID: 140315516397312, resourceID: 2
+read thread ID: 140315549968128, resourceID: 2
+read thread ID: 140315516397312, resourceID: 2
+write thread ID: 140315508004608, resourceID: 3
+read thread ID: 140315549968128, resourceID: 3
+read thread ID: 140315541575424, resourceID: 3
+read thread ID: 140315533182720, resourceID: 3read thread ID: read thread ID: 140315524790016, resourceID: 3
+140315516397312, resourceID: 3
+
+read thread ID: read thread ID: read thread ID: 140315524790016140315549968128, resourceID: , resourceID: 33
+140315516397312, resourceID: 3
+read thread ID: 140315541575424, resourceID: read thread ID: 140315533182720, resourceID: 3
+3
+
+write thread ID: 140315508004608, resourceID: 4
+read thread ID: 140315516397312, resourceID: 4
+read thread ID: 140315541575424, resourceID: 4
+read thread ID: 140315524790016, resourceID: 4
+read thread ID: 140315549968128, resourceID: 4
+read thread ID: 140315533182720, resourceID: 4
+read thread ID: 140315524790016, resourceID: 4
+read thread ID: 140315541575424, resourceID: 4
+write thread ID: 140315508004608, resourceID: 5
+read thread ID: 140315516397312, resourceID: 5
+read thread ID: 140315541575424, resourceID: 5
+read thread ID: 140315524790016, resourceID: 5
+read thread ID: 140315533182720, resourceID: 5
+read thread ID: 140315549968128, resourceID: 5
+```
+
+这次请求读锁的线程和请求写锁的线程的输出结果分布就比较均匀了。
 
