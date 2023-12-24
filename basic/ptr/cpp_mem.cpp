@@ -19,6 +19,20 @@ int main() {
     char *p4 = new char[7]; //(heap)堆区变量
     strcpy(p4, "1234567"); //(text)代码区
 
+    //(text)代码区
+    if (p1 != NULL) {
+        delete p1;
+        p1 = NULL;
+    }
+    if (p2!= NULL) {
+        delete p2;
+        p2 = NULL;
+    }
+    if (p4!= NULL) {
+        delete[] p4;
+        p4 = NULL;
+    }
+    //(text)代码区
     return 0;   //(text)代码区
 }
 
