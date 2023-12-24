@@ -48,11 +48,33 @@ void demo03() {
     cout << (*b)[3] << endl;
 }
 
+void demo04() {
+    cout << __FUNCTION__ << endl;
+    // 指针的运算
+    int a = 7, b = -1;
+    int *p = &a;
+    cout << p << endl;
+    cout << *p << endl;
+    cout << p + 1 << endl;
+    cout << p - 1 << endl;
+    cout << p + 2 << endl;
+    cout << p - 2 << endl;
+    cout << p + 3 << endl;
+    *p++ = 1;
+    *++p = 2;
+    cout << a++ +b << endl;
+    int * pa = &a;
+    int * pb = &b;
+    cout << *pa++ + *pb << endl;
+}
+
 int main() {
     demo01();
 
     demo02();
 
     demo03();
+
+    demo04();
     return 0;
 }
