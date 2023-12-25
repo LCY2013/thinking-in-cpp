@@ -180,8 +180,376 @@ Missing separate debuginfos, use: debuginfo-install glibc-2.17-260.el7.x86_64 li
 线程A对mutexM加锁 => 线程B对mutexM加锁（会阻塞）
 ```
 
+## std::shared_mutex
+C++ 11 标准让很多开发者诟病的原因之一是，C++ 新标准借鉴 boost 库的 boost::mutex、boost::shared_mutex 而引入 std::mutex 和 std::shared_mutex，但是在 C++11 中只引入了 std::mutex，直到 C++ 17 才有 std::shared_mutex，这让只能使用仅支持 C++11 标准的编译器的开发者非常不方便。
+
+> 商业项目中一般不会轻易升级编译器，因为商业项目一般牵涉的代码范围较大，升级编译器后可能导致大量旧的文件需要修改，例如对于被广泛使用的 CentOS 7.0，其自带的 gcc 编译器是 4.8，升级 gcc 的同时会导致系统自带的 glibc 库发生变化，导致系统中大量其他程序无法运行。因此，实际的商业项目中，升级旧的开发环境是非常慎重的。
+
+std::shared_mutex 底层实现主要原理是操作系统提供的读写锁，也就是说，在存在多个线程对共享资源读、少许线程对共享资源写的情况下，std::shared_mutex 比 std::mutex 效率更高。
+
+std::shared_mutex 提供了 lock() 和 unlock() 方法获取写锁和解除写锁，提供了 lock_shared() 和 unlock_shared() 方法获取读锁和解除读锁，写锁模式我们称为排他锁（Exclusive Locking），读锁模式我们称为共享锁（Shared Locking）。
+
+另外，C++ 新标准中引入与 std::shared_mutex 配合使用的两个对象—— std::unique_lock和std::shared_lock ，这两个对象在构造时自动对std::shared_mutex进行加锁、在析构时自动对std::shared_mutex进行解锁，前者用于加解 std::shared_mutex 的写锁，后者用于加解 std::shared_mutex 的读锁。
+
+> std::unique_lock 在 C++11 引入，std::shared_lock 在 C++14 引入。
+
+下面是对共享资源存在多个读线程和一个写线程，分别使用 std::mutex 和 std::shared_mutex 做的一个性能测试，测试代码如下：
+```c++
+/**
+ * std::shared_mutex与std::mutex的性能对比
+ */
+
+ //读线程数量
+#define READER_THREAD_COUNT  8
+//最大循环次数
+#define LOOP_COUNT           5000000
+
+#include <iostream>
+#include <mutex>  
+#include <shared_mutex>
+#include <thread>
+
+class shared_mutex_counter
+{
+public:
+	shared_mutex_counter() = default;
+	~shared_mutex_counter() = default;
+
+	//使用std::shared_mutex，同一时刻多个读线程可以同时访问value_值
+	unsigned int get() const
+	{
+		//注意：这里使用std::shared_lock
+		std::shared_lock<std::shared_mutex> lock(mutex_);
+		return value_;
+	}
+
+	//使用std::shared_mutex，同一个时刻仅有一个写线程可以修改value_值
+	void increment()
+	{
+		//注意：这里使用std::unique_lock
+		std::unique_lock<std::shared_mutex> lock(mutex_);
+		value_++;
+	}
+
+	//使用std::shared_mutex，同一个时刻仅有一个写线程可以重置value_值
+	void reset()
+	{
+		//注意：这里使用std::unique_lock
+		std::unique_lock<std::shared_mutex> lock(mutex_);
+		value_ = 0;
+	}
+
+private:
+	mutable std::shared_mutex   mutex_;
+	//value_是多个线程的共享资源
+	unsigned int                value_ = 0;
+};
+
+class mutex_counter
+{
+public:
+	mutex_counter() = default;
+	~mutex_counter() = default;
+
+	//使用std::mutex，同一时刻仅有一个线程可以访问value_的值
+	unsigned int get() const
+	{
+		std::unique_lock<std::mutex> lk(mutex_);
+		return value_;
+	}
+
+	//使用std::mutex，同一时刻仅有一个线程可以修改value_的值
+	void increment()
+	{
+		std::unique_lock<std::mutex> lk(mutex_);
+		value_++;
+	}
+
+private:
+	mutable std::mutex      mutex_;
+	//value_是多个线程的共享资源
+	unsigned int            value_ = 0;
+};
+
+//测试std::shared_mutex
+void test_shared_mutex()
+{
+	shared_mutex_counter counter;
+	int temp;
+
+	//写线程函数
+	auto writer = [&counter](./) {
+		for (int i = 0; i < LOOP_COUNT; i++)
+		{
+			counter.increment();
+		}
+	};
+
+	//读线程函数
+	auto reader = [&counter, &temp](./) {
+		for (int i = 0; i < LOOP_COUNT; i++)
+		{
+			temp = counter.get();
+		}
+	};
+
+	//存放读线程对象指针的数组
+	std::thread** tarray = new std::thread * [READER_THREAD_COUNT];
+
+	//记录起始时间
+	clock_t start = clock();
+
+	//创建READER_THREAD_COUNT个读线程
+	for (int i = 0; i < READER_THREAD_COUNT; i++)
+	{
+		tarray[i] = new std::thread(reader);
+	}
+
+	//创建一个写线程
+	std::thread tw(writer);
+
+	for (int i = 0; i < READER_THREAD_COUNT; i++)
+	{
+		tarray[i]->join();
+	}
+	tw.join();
+
+	//记录起始时间
+	clock_t end = clock();
+	printf("[test_shared_mutex]\n");
+	printf("thread count: %d\n", READER_THREAD_COUNT);
+	printf("result: %d cost: %dms temp: %d \n", counter.get(), end - start, temp);
+}
+
+//测试std::mutex
+void test_mutex()
+{
+	mutex_counter counter;
+
+	int temp;
+
+	//写线程函数
+	auto writer = [&counter](./) {
+		for (int i = 0; i < LOOP_COUNT; i++)
+		{
+			counter.increment();
+		}
+	};
+
+	//读线程函数
+	auto reader = [&counter, &temp](./) {
+		for (int i = 0; i < LOOP_COUNT; i++)
+		{
+			temp = counter.get();
+		}
+	};
+
+	//存放读线程对象指针的数组
+	std::thread** tarray = new std::thread * [READER_THREAD_COUNT];
+
+	//记录起始时间
+	clock_t start = clock();
+
+	//创建READER_THREAD_COUNT个读线程
+	for (int i = 0; i < READER_THREAD_COUNT; i++)
+	{
+		tarray[i] = new std::thread(reader);
+	}
+
+	//创建一个写线程
+	std::thread tw(writer);
+
+	for (int i = 0; i < READER_THREAD_COUNT; i++)
+	{
+		tarray[i]->join();
+	}
+	tw.join();
+
+	//记录结束时间
+	clock_t end = clock();
+	printf("[test_mutex]\n");
+	printf("thread count:%d\n", READER_THREAD_COUNT);
+	printf("result:%d cost:%dms temp:%d \n", counter.get(), end - start, temp);
+}
+
+int main()
+{
+	//为了排除测试程序的无关因素，测试时只开启一个  
+	test_mutex();
+	//test_shared_mutex();
+	return 0;
+}
+```
+
+在 Linux 机器上，由于 std::shared_mutex 是 C++17 才引入的（gcc 7.0 及以上，我使用的是 gcc 7.3），因此编译时需要加上编译参数 --std=c++17，测试结果如下：
+```c++
+[root@localhost testmutexbenchmark]# g++ -g -o test_shared_mutex mutex-vs-sharedmutex.cpp -std=c++17 -lpthread
+[root@localhost testmutexbenchmark]# vi mutex-vs-sharedmutex.cpp
+[root@localhost testmutexbenchmark]# g++ -g -o test_mutex mutex-vs-sharedmutex.cpp -std=c++17 -lpthread
+[root@localhost testmutexbenchmark]# ll
+total 416
+-rwxr-xr-x 1 root root 205688 Nov 10 22:35 test_mutex
+-rwxr-xr-x 1 root root 205688 Nov 10 22:35 test_shared_mutex
+-rw-r--r-- 1 root root   4112 Nov 10 22:35 mutex-vs-sharedmutex.cpp
+[root@localhost testmutexbenchmark]# ./test_mutex
+[test_mutex]
+thread count:8
+result:5000000 cost:2460000ms temp:4341759 
+[root@localhost testmutexbenchmark]# ./test_shared_mutex 
+[test_shared_mutex]
+thread count: 8
+result: 5000000 cost: 2620000ms temp: 735375
+```
+
+由于 Linux 机器配置不同，所以在 Linux 机器上的测试结果 std::shared_mutex 比 std::mutex 差别并不明显，可以尝试修改 READER_THREAD_COUNT 的值来测试不同数量的读线程的输出结果。
+
+> std::mutex 和 std::shared_mutex 分别对应 java jdk 中的 ReentrantLock 和 ReentrantReadWriteLock。
+
+如果条件允许，建议读者认真甄别实际场景，可以使用 std::shared_mutex 去替代部分 std::mutex，以提高程序执行效率。
+	
+## std::condition_variable
+C++ 11 提供了 std::condition_variable 这个类代表条件变量，与 Linux 系统原生的条件变量一样，同时提供了等待条件变量满足的 wait 系列方法（wait、wait_for、wait_until 方法），发送条件信号使用 notify 方法（notify_one 和 notify_all 方法），当然使用 std::condition_variable 对象时需要绑定一个 std::unique_lock 或 std::lock_guard 对象。
+
+> C++ 11 中 std::condition_variable 不再需要显式调用方法初始化和销毁。
+
+将Linux 条件变量的例子改写成 C++ 11 版本：
+```c++
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+#include <list>
+#include <iostream>
+
+class Task
+{
+public:
+	Task(int taskID)
+	{
+		this->taskID = taskID;
+	}
+	
+	void doTask()
+	{
+		std::cout << "handle a task, taskID: " << taskID << ", threadID: " << std::this_thread::get_id() << std::endl; 
+	}
+	
+private:
+	int taskID;
+};
+
+std::mutex                mymutex;
+std::list<Task*>          tasks;
+std::condition_variable   mycv;
+
+void* consumer_thread()
+{	
+	Task* pTask = NULL;
+	while (true)
+	{
+		std::unique_lock<std::mutex> guard(mymutex);
+		while (tasks.empty())
+		{				
+			//如果获得了互斥锁，但是条件不合适的话，pthread_cond_wait会释放锁，不往下执行。
+			//当发生变化后，条件合适，pthread_cond_wait将直接获得锁。
+			mycv.wait(guard);
+		}
 		
+		pTask = tasks.front();
+		tasks.pop_front();
 		
+		if (pTask == NULL)
+			continue;
+
+		pTask->doTask();
+		delete pTask;
+		pTask = NULL;		
+	}
+	
+	return NULL;
+}
+
+void* producer_thread()
+{
+	int taskID = 0;
+	Task* pTask = NULL;
+	
+	while (true)
+	{
+		pTask = new Task(taskID);
+			
+		//使用括号减小guard锁的作用范围
+		{
+			std::lock_guard<std::mutex> guard(mymutex);
+			tasks.push_back(pTask);
+			std::cout << "produce a task, taskID: " << taskID << ", threadID: " << std::this_thread::get_id() << std::endl; 
+		}
 		
+		//释放信号量，通知消费者线程
+		mycv.notify_one();
+		
+		taskID ++;
+
+		//休眠1秒
+		std::this_thread::sleep_for(std::chrono::seconds(1));
+	}
+	
+	return NULL;
+}
+
+int main()
+{
+	//创建5个消费者线程
+	std::thread consumer1(consumer_thread);
+	std::thread consumer2(consumer_thread);
+	std::thread consumer3(consumer_thread);
+	std::thread consumer4(consumer_thread);
+	std::thread consumer5(consumer_thread);
+	
+	//创建一个生产者线程
+	std::thread producer(producer_thread);
+
+	producer.join();
+	consumer1.join();
+	consumer2.join();
+	consumer3.join();
+	consumer4.join();
+	consumer5.join();
+
+	return 0;
+}
+```
+
+编译并执行程序输出结果如下所示：
+```shell
+[root@localhost testmultithread]# g++ -g -o cpp11cv cond-var.cpp -std=c++0x -lpthread
+[root@localhost testmultithread]# ./cpp11cv 
+produce a task, taskID: 0, threadID: 140427590100736
+handle a task, taskID: 0, threadID: 140427623671552
+produce a task, taskID: 1, threadID: 140427590100736
+handle a task, taskID: 1, threadID: 140427632064256
+produce a task, taskID: 2, threadID: 140427590100736
+handle a task, taskID: 2, threadID: 140427615278848
+produce a task, taskID: 3, threadID: 140427590100736
+handle a task, taskID: 3, threadID: 140427606886144
+produce a task, taskID: 4, threadID: 140427590100736
+handle a task, taskID: 4, threadID: 140427598493440
+produce a task, taskID: 5, threadID: 140427590100736
+handle a task, taskID: 5, threadID: 140427623671552
+produce a task, taskID: 6, threadID: 140427590100736
+handle a task, taskID: 6, threadID: 140427632064256
+produce a task, taskID: 7, threadID: 140427590100736
+handle a task, taskID: 7, threadID: 140427615278848
+produce a task, taskID: 8, threadID: 140427590100736
+handle a task, taskID: 8, threadID: 140427606886144
+produce a task, taskID: 9, threadID: 140427590100736
+handle a task, taskID: 9, threadID: 140427598493440
+...更多输出结果省略...
+```
+
+需要注意的是，如果在 Linux 平台上，std::condition_variable 也存在虚假唤醒这一现象，如何解决这个问题，也是通过唤醒后的条件判断。
+
+
+
+
 
 
