@@ -762,4 +762,221 @@ struct hostent* gethostbyname(const char* name);
 
 为什么会出现这类函数呢？是因为最初编写很多 CRT 函数时，还没有多线程技术，所以很多函数内部实现都使用了函数内部的静态变量和全局变量。随着多线程技术的出现，很多函数出现了对应的多线程安全版本，如 localtime_r、strtok_r。在这些函数内部很多改用了线程局部存储 技术来替代原来使用静态变量或者全局变量的做法。
 
+## 线程池与队列系统的设计
+
+### 线程池的设计原理
+所谓线程池不过是一组线程而已，一般情况下，我们需要异步执行一些任务，这些任务的产生和执行是存在于我们程序的整个生命周期的，与其让操作系统频繁地为我们创建和销毁线程，我们通常需要创建一组在我们程序生命周期内不会退出的线程，为了不浪费系统资源，我们的基本要求是当有任务需要执行时，这些线程可以自动拿到任务去执行，没有任务时这些线程处于阻塞或者睡眠状态。这里就涉及到这些处理任务的工作线程的唤醒与睡眠，如果你理解了上文中介绍的各种线程同步技术，相信你现在对如何唤醒和睡眠线程已经很熟悉了。
+
+既然在程序生命周期内会产生很多任务，那么这些任务必须有一个存放的地方，而这个地方就是队列，所以不要一提到队列就认为是一个具体的 list，它可以是一个全局变量、链表等等。而线程池中的线程从队列中如何取任务，则也可以设计得非常灵活，如从尾部放入任务，从头部取出，或者从头部放入，从尾部取出等等。而队列也可以根据实际应用设计得”丰富多彩“，例如，可以根据任务的优先级设计多个队列（例如分为高、中、低三个级别或者分为关键、普通两个级别）。
+
+这本质上就是生产者消费者模式，产生任务的线程是生产者，线程池中的线程是消费者。当然，这不是绝对的，线程池中的线程处理一个任务以后可能会产生一个新的关联任务，那么此时这个工作线程又是生产者的角色。
+
+既然会有多个线程同时操作这个队列，根据多线程程序的原则，这个队列我们一般需要对其加锁，以避免多线程竞争产生非预期的结果。
+
+当然，技术上除了要解决线程池的创建、往队列中投递任务、从队列中取任务处理，我们还需要做一些善后工作，如线程池的清理，即如何退出线程池中的工作线程和清理任务队列。
+
+这就是线程池和任务队列的核心原理，希望读者能认真体会。
+
+来看一个具体的例子：
+```c++
+/** 
+ * 任务池模型，TaskPool.h
+ */
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+#include <list>
+#include <vector>
+#include <memory>
+#include <iostream>
+
+class Task
+{
+public:
+    virtual void doIt()
+    {
+        std::cout << "handle a task..." << std::endl;
+    }
+
+    virtual ~Task()
+    {
+        //为了看到一个task的销毁，这里刻意补上其析构函数
+        std::cout << "a task destructed..." << std::endl;
+    }
+};
+
+class TaskPool final
+{
+public:
+    TaskPool();
+    ~TaskPool();
+    TaskPool(const TaskPool& rhs) = delete;
+    TaskPool& operator=(const TaskPool& rhs) = delete;
+
+public:
+    void init(int threadNum = 5);
+    void stop();
+
+    void addTask(Task* task);
+    void removeAllTasks();
+
+private:
+    void threadFunc();
+
+private:
+    std::list<std::shared_ptr<Task>>            m_taskList;
+    std::mutex                                  m_mutexList;
+    std::condition_variable                     m_cv;
+    bool                                        m_bRunning;
+    std::vector<std::shared_ptr<std::thread>>   m_threads;
+};
+```
+
+```c++
+/**
+ * 任务池模型，TaskPool.cpp
+ */
+
+#include "TaskPool.h"
+
+TaskPool::TaskPool() : m_bRunning(false)
+{
+
+}
+
+TaskPool::~TaskPool()
+{
+    removeAllTasks();
+}
+
+void TaskPool::init(int threadNum/* = 5*/)
+{
+    if (threadNum <= 0)
+        threadNum = 5;
+
+    m_bRunning = true;
+
+    for (int i = 0; i < threadNum; ++i)
+    {
+        std::shared_ptr<std::thread> spThread;
+        spThread.reset(new std::thread(std::bind(&TaskPool::threadFunc, this)));
+        m_threads.push_back(spThread);
+    }
+}
+
+void TaskPool::threadFunc()
+{
+    std::shared_ptr<Task> spTask;
+    while (true)
+    {
+        std::unique_lock<std::mutex> guard(m_mutexList);
+        while (m_taskList.empty())
+        {                 
+            if (!m_bRunning)
+                break;
+            
+            //如果获得了互斥锁，但是条件不满足的话，m_cv.wait()调用会释放锁，且挂起当前
+            //线程，因此不往下执行。
+            //当发生变化后，条件满足，m_cv.wait() 将唤醒挂起的线程，且获得锁。
+            m_cv.wait(guard);
+        }
+
+        if (!m_bRunning)
+            break;
+
+        spTask = m_taskList.front();
+        m_taskList.pop_front();
+
+        if (spTask == NULL)
+            continue;
+
+        spTask->doIt();
+        spTask.reset();
+    }
+
+    std::cout << "exit thread, threadID: " << std::this_thread::get_id() << std::endl;
+}
+
+void TaskPool::stop()
+{
+    m_bRunning = false;
+    m_cv.notify_all();
+
+    //等待所有线程退出
+    for (auto& iter : m_threads)
+    {
+        if (iter->joinable())
+            iter->join();
+    }
+}
+
+void TaskPool::addTask(Task* task)
+{
+    std::shared_ptr<Task> spTask;
+    spTask.reset(task);
+
+    {
+        std::lock_guard<std::mutex> guard(m_mutexList);             
+        m_taskList.push_back(spTask);
+        std::cout << "add a Task." << std::endl;
+    }
+    
+    m_cv.notify_one();
+}
+
+void TaskPool::removeAllTasks()
+{
+    {
+        std::lock_guard<std::mutex> guard(m_mutexList);
+        for (auto& iter : m_taskList)
+        {
+            iter.reset();
+        }
+        m_taskList.clear();
+    }
+}
+```
+
+上述代码封装了一个简单的任务队列模型，我们可以这么使用这个 TaskPool 对象：
+```c++
+#include "TaskPool.h"
+#include <chrono>
+
+int main()
+{
+    TaskPool threadPool;
+    threadPool.init();
+
+    Task* task = NULL;
+    for (int i = 0; i < 10; ++i)
+    {
+        task = new Task();
+        threadPool.addTask(task);
+    }
+    
+    std::this_thread::sleep_for(std::chrono::seconds(5));
+
+    threadPool.stop();
+
+    return 0;
+}
+```
+
+上述代码演示了一个基本的多线程队列模型，虽然简单，但是比较典型，可以应付实际生产中的一部分需求，你可以基于这个基础模型进行扩展，不管怎么扩展其基本原理都是一样的。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
