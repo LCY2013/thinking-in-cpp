@@ -1,0 +1,106 @@
+// 多分支条件的if
+// if, else if, else
+	COLOR color0;
+	color0 = BLUE;
+001A5D85  mov         dword ptr [color0],2  
+	int c0 = 0;
+001A5D8C  mov         dword ptr [c0],0  
+	if (color0 == RED) { 
+001A5D93  cmp         dword ptr [color0],0  
+001A5D97  jne         main+164h (01A5DA4h)  
+		//cout << "red" << endl; 
+		c0 += 1;
+001A5D99  mov         eax,dword ptr [c0]  
+001A5D9C  add         eax,1  
+001A5D9F  mov         dword ptr [c0],eax  
+001A5DA2  jmp         main+18Ch (01A5DCCh)  
+	}
+	else if (color0 == GREEN) { 
+001A5DA4  cmp         dword ptr [color0],1  
+001A5DA8  jne         main+175h (01A5DB5h)  
+		//cout << "green" << endl; 
+		c0 += 2;
+001A5DAA  mov         eax,dword ptr [c0]  
+001A5DAD  add         eax,2  
+001A5DB0  mov         dword ptr [c0],eax  
+001A5DB3  jmp         main+18Ch (01A5DCCh)  
+	}
+	else if (color0 == BLUE) {
+001A5DB5  cmp         dword ptr [color0],2  
+001A5DB9  jne         main+186h (01A5DC6h)  
+		//cout << "blue" << endl;
+		c0 += 3;
+001A5DBB  mov         eax,dword ptr [c0]  
+001A5DBE  add         eax,3  
+		//cout << "blue" << endl;
+		c0 += 3;
+001A5DC1  mov         dword ptr [c0],eax  
+	}
+	else { 
+001A5DC4  jmp         main+18Ch (01A5DCCh)  
+		//cout << "unknown color" << endl; 
+		c0 += 0;
+001A5DC6  mov         eax,dword ptr [c0]  
+001A5DC9  mov         dword ptr [c0],eax  
+	}
+
+// 多分支条件的switch
+// switch,case,default
+	COLOR color1;
+	color1 = GREEN;
+001A5DCC  mov         dword ptr [color1],1  
+	int c1 = 0;
+001A5DD3  mov         dword ptr [c1],0  
+	switch (color1) 
+001A5DDA  mov         eax,dword ptr [color1]  
+001A5DDD  mov         dword ptr [ebp-10Ch],eax  
+001A5DE3  cmp         dword ptr [ebp-10Ch],0  
+001A5DEA  je          main+1C0h (01A5E00h)  
+001A5DEC  cmp         dword ptr [ebp-10Ch],1  
+001A5DF3  je          main+1CBh (01A5E0Bh)  
+001A5DF5  cmp         dword ptr [ebp-10Ch],2  
+001A5DFC  je          main+1D6h (01A5E16h)  
+001A5DFE  jmp         main+1E1h (01A5E21h)  
+	{
+		case RED:
+		{	
+			//cout << "red" << endl;
+			c1 += 1;
+001A5E00  mov         eax,dword ptr [c1]  
+001A5E03  add         eax,1  
+001A5E06  mov         dword ptr [c1],eax  
+			break;
+001A5E09  jmp         main+1E7h (01A5E27h)  
+		}
+		case GREEN:
+		{	
+			//cout << "green" << endl; 
+			c1 += 2;
+001A5E0B  mov         eax,dword ptr [c1]  
+001A5E0E  add         eax,2  
+001A5E11  mov         dword ptr [c1],eax  
+			break;
+001A5E14  jmp         main+1E7h (01A5E27h)  
+		}
+		case BLUE:
+		{	
+			//cout << "blue" << endl;
+			c1 += 3;
+001A5E16  mov         eax,dword ptr [c1]  
+001A5E19  add         eax,3  
+001A5E1C  mov         dword ptr [c1],eax  
+			break;
+001A5E1F  jmp         main+1E7h (01A5E27h)  
+		}
+		default:
+		{	
+			//cout << "unknown color" << endl;
+			c1 += 0;
+001A5E21  mov         eax,dword ptr [c1]  
+001A5E24  mov         dword ptr [c1],eax  
+			break;
+		}
+	}
+    return 0;
+001A5E27  xor         eax,eax  
+}
