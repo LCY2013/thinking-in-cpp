@@ -1,0 +1,63 @@
+	// while语句
+	int sum = 0;
+002A17BE  mov         dword ptr [sum],0  
+	int index = 1;
+002A17C5  mov         dword ptr [index],1  
+	while (index <= 100)
+002A17CC  cmp         dword ptr [index],64h  
+002A17D0  jg          main+46h (02A17E6h)  
+	{
+		sum += index;
+002A17D2  mov         eax,dword ptr [sum]  
+002A17D5  add         eax,dword ptr [index]  
+002A17D8  mov         dword ptr [sum],eax  
+		index += 1;
+002A17DB  mov         eax,dword ptr [index]  
+002A17DE  add         eax,1  
+002A17E1  mov         dword ptr [index],eax  
+	}
+002A17E4  jmp         main+2Ch (02A17CCh)  
+	//cout << sum << endl;
+
+	// for语句
+	//index = 1;
+	sum = 0;
+002A17E6  mov         dword ptr [sum],0  
+	for (index = 1; index <= 100; ++index)
+002A17ED  mov         dword ptr [index],1  
+002A17F4  jmp         main+5Fh (02A17FFh)  
+002A17F6  mov         eax,dword ptr [index]  
+002A17F9  add         eax,1  
+002A17FC  mov         dword ptr [index],eax  
+002A17FF  cmp         dword ptr [index],64h  
+002A1803  jg          main+70h (02A1810h)  
+	{
+		sum += index;
+002A1805  mov         eax,dword ptr [sum]  
+	{
+		sum += index;
+002A1808  add         eax,dword ptr [index]  
+002A180B  mov         dword ptr [sum],eax  
+	}
+002A180E  jmp         main+56h (02A17F6h)  
+	//cout << sum << endl;
+
+	// do-while语句
+	sum = 0;
+002A1810  mov         dword ptr [sum],0  
+	index = 1;
+002A1817  mov         dword ptr [index],1  
+	do 
+	{
+		sum += index;
+002A181E  mov         eax,dword ptr [sum]  
+002A1821  add         eax,dword ptr [index]  
+002A1824  mov         dword ptr [sum],eax  
+		index += 1;
+002A1827  mov         eax,dword ptr [index]  
+002A182A  add         eax,1  
+002A182D  mov         dword ptr [index],eax  
+	} while (index <= 100);
+002A1830  cmp         dword ptr [index],64h  
+002A1834  jle         main+7Eh (02A181Eh)  
+	//cout << sum << endl;
