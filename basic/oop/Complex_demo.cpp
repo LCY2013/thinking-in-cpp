@@ -24,5 +24,12 @@ int main() {
     Complex d;
     d = b+c;
     cout << b.GetReal() << " " << b.GetImag() << endl;
+
+    Complex e(d);
+    cout << e.GetReal() << " " << e.GetImag() << endl;
+
+    e++;
+
+    ++d;
     return 0;
 }

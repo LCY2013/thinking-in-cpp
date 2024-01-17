@@ -9,9 +9,11 @@
 
 class Complex {
 public:
-    Complex();
+    Complex(); //默认构造函数
 
-    Complex(double real, double imag);
+    Complex(double real, double imag); // 构造函数
+
+    Complex(const Complex &rhs); //拷贝构造函数
 
     virtual ~Complex();
 
@@ -37,10 +39,12 @@ public:
     Complex operator<=(const Complex &rhs);
     Complex operator!();
     Complex operator~();
-    Complex operator++();
-    Complex operator--();
-    Complex operator++(int);
-    Complex operator--(int);
+
+    // 前置自增自减
+    Complex& operator++(); //前置自增
+    Complex& operator--(); //前置自减
+    Complex operator++(int); //后置自增
+    Complex operator--(int); //后置自减
     Complex operator+(double rhs);
     Complex operator-(double rhs);
     Complex operator*(double rhs);

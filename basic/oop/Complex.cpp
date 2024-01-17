@@ -8,7 +8,7 @@
 using namespace std;
 
 Complex::Complex() {
-    cout << "Complex()无参构造函数" << endl;
+    cout << "Complex()" << endl;
     _real = 0;
     _imag = 0;
 }
@@ -16,10 +16,17 @@ Complex::Complex() {
 Complex::Complex(double real, double imag) {
     this->_imag = imag;
     this->_real = real;
+    cout << "Complex(double real, double imag)" << endl;
+}
+
+Complex::Complex(const Complex &rhs) {
+    this->_imag = rhs.GetImag();
+    this->_real = rhs.GetReal();
+    cout << "Complex(const Complex &rhs)" << endl;
 }
 
 Complex::~Complex() {
-    cout << "~Complex()析构函数" << endl;
+    cout << "~Complex()" << endl;
 }
 
 double Complex::GetReal() const {
@@ -39,6 +46,10 @@ void Complex::SetImag(double imag) {
 }
 
 Complex Complex::operator+(const Complex &rhs) {
+    /*Complex tmp;
+    tmp._real = _real + rhs.GetReal();
+    tmp._imag = _imag + rhs.GetImag();
+    return tmp;*/
     return Complex(_real + rhs.GetReal(), _imag + rhs.GetImag());
 }
 
@@ -63,6 +74,32 @@ Complex& Complex::operator=(const Complex &rhs) {
         _imag = rhs.GetImag();
     }
     return *this;
+}
+
+Complex& Complex::operator++() {
+    _real++;
+    _imag++;
+    return *this;
+}
+
+Complex Complex::operator++(int) {
+    /*Complex tmp(*this);
+    ++(*this);
+    return tmp;*/
+    return Complex(_real++, _imag++);
+}
+
+Complex& Complex::operator--() {
+    _real--;
+    _imag--;
+    return *this;
+}
+
+Complex Complex::operator--(int) {
+    /*Complex tmp(*this);
+    --(*this);
+    return tmp;*/
+    return Complex(_real--, _imag--);
 }
 
 ostream &operator<<(ostream &os, const Complex &rhs) {
