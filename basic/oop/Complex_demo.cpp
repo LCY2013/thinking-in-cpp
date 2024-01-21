@@ -8,25 +8,25 @@ using namespace std;
 
 int main() {
     Complex c;
-    cout << c.GetReal() << " " << c.GetImag() << endl;
+    cout << c.GetReal() << " " << c.GetImage() << endl;
     c.SetReal(1.0);
-    c.SetImag(2.0);
+    c.SetImage(2.0);
 
     Complex a(1.0, 2.0);
-    cout << a.GetReal() << " " << a.GetImag() << endl;
+    cout << a.GetReal() << " " << a.GetImage() << endl;
     a.SetReal(3.0);
-    a.SetImag(4.0);
-    cout << a.GetReal() << " " << a.GetImag() << endl;
+    a.SetImage(4.0);
+    cout << a.GetReal() << " " << a.GetImage() << endl;
 
     Complex b = a + c;
-    cout << b.GetReal() << " " << b.GetImag() << endl;
+    cout << b.GetReal() << " " << b.GetImage() << endl;
 
     Complex d;
     d = b+c;
-    cout << b.GetReal() << " " << b.GetImag() << endl;
+    cout << b.GetReal() << " " << b.GetImage() << endl;
 
     Complex e(d);
-    cout << e.GetReal() << " " << e.GetImag() << endl;
+    cout << e.GetReal() << " " << e.GetImage() << endl;
 
     e++;
 

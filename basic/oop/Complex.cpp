@@ -2,151 +2,174 @@
 // Created by fufeng on 2024/1/1.
 //
 
-#include <iostream>
 #include "Complex.h"
 
-using namespace std;
-
-Complex::Complex() {
-    cout << "Complex()" << endl;
-    _real = 0;
-    _imag = 0;
+Complex::Complex()
+{
+    _real = 0.0;
+    _image = 0.0;
+    //cout << "Complex::Complex()" << endl;
 }
 
-Complex::Complex(double real, double imag) {
-    this->_imag = imag;
-    this->_real = real;
-    cout << "Complex(double real, double imag)" << endl;
+Complex::Complex(double r, double i)
+{
+    _real = r;
+    _image = i;
+    //cout << "Complex::Complex(double r, double i)" << endl;
 }
 
-Complex::Complex(const Complex &rhs) {
-    this->_imag = rhs.GetImag();
-    this->_real = rhs.GetReal();
-    cout << "Complex(const Complex &rhs)" << endl;
+Complex::Complex(const Complex& c)
+{
+    _real = c._real;
+    _image = c._image;
+    //cout << "Complex::Complex(const Complex& c)" << endl;
 }
 
-Complex::~Complex() {
-    cout << "~Complex()" << endl;
-}
-
-double Complex::GetReal() const {
-    return _real;
-}
-
-void Complex::SetReal(double real) {
-    _real = real;
-}
-
-double Complex::GetImag() const {
-    return _imag;
-}
-
-void Complex::SetImag(double imag) {
-    _imag = imag;
-}
-
-Complex Complex::operator+(const Complex &rhs) {
-    /*Complex tmp;
-    tmp._real = _real + rhs.GetReal();
-    tmp._imag = _imag + rhs.GetImag();
-    return tmp;*/
-    return Complex(_real + rhs.GetReal(), _imag + rhs.GetImag());
-}
-
-Complex Complex::operator-(const Complex &rhs) {
-    return Complex(_real - rhs.GetReal(), _imag - rhs.GetImag());
-}
-
-Complex Complex::operator*(const Complex &rhs) {
-    return Complex(_real * rhs.GetReal() - _imag * rhs.GetImag(),
-                   _real * rhs.GetImag() + _imag * rhs.GetReal());
-}
-
-Complex Complex::operator/(const Complex &rhs) {
-    double denominator = rhs.GetReal() * rhs.GetReal() + rhs.GetImag() * rhs.GetImag();
-    return Complex((_real * rhs.GetReal() + _imag * rhs.GetImag()) / denominator,
-                   (_imag * rhs.GetReal() - _real * rhs.GetImag()) / denominator);
-}
-
-Complex& Complex::operator=(const Complex &rhs) {
-    if (this!= &rhs) {
-        _real = rhs.GetReal();
-        _imag = rhs.GetImag();
+Complex& Complex::operator= (const Complex& c)
+{
+    if (this != &c)
+    {
+        _real = c._real;
+        _image = c._image;
     }
     return *this;
 }
 
-Complex& Complex::operator++() {
+Complex::~Complex()
+{
+    _real = _image = 0.0;
+    //cout << "Complex::~Complex()" << endl;
+}
+
+Complex Complex::operator+ (const Complex& c) const
+{
+    //Complex tmp;
+    //tmp._real = _real + x._real;
+    //tmp._image = _image + x._image;
+    //return tmp;
+
+    return Complex(_real + c._real, _image + c._image);
+}
+
+
+Complex& Complex::operator+= (const Complex& c)
+{
+    _real += c._real;
+    _image += c._image;
+
+    return *this;
+}
+
+Complex Complex::operator-(const Complex &c) const
+{
+    return Complex(_real - c._real, _image - c._image);
+}
+
+Complex& Complex::operator-=(const Complex &c)
+{
+    _real -= c._real;
+    _image -= c._image;
+
+    return *this;
+}
+
+Complex Complex::operator*(const Complex &c) const
+{
+    return Complex(_real*c._real - _image*c._image, _real*c._image + _image*c._real);
+}
+
+Complex& Complex::operator*=(const Complex &c)
+{
+    Complex tmp(*this);
+    _real = tmp._real*c._real - _image*c._image;
+    _image = tmp._real*c._image + tmp._image*c._real;
+    return *this;
+}
+
+Complex Complex::operator/(const Complex &c) const
+{
+    double t = c._real*c._real + c._image*c._image;
+    return Complex((_real*c._real - _image*(-c._image)) / t, (_real*(-c._image) + _image*c._real) / t);
+}
+
+Complex& Complex::operator/=(const Complex &c)
+{
+    Complex tmp(*this);
+    double t = c._real*c._real + c._image*c._image;
+    _real = (tmp._real*c._real - tmp._image*(-c._image)) / t;
+    _image = (tmp._real*(-c._image) + tmp._image*c._real) / t;
+    return *this;
+}
+
+bool Complex::operator==(const Complex& c) const
+{
+    return (_real == c._real) && (_image == c._image);
+}
+
+bool Complex::operator!=(const Complex& c) const
+{
+    return !( (_real == c._real) && (_image == c._image) );
+}
+
+bool Complex::operator>(const Complex &c)  const
+{
+    return (_real > c._real) && (_image > c._image);
+}
+
+bool Complex::operator>=(const Complex &c) const
+{
+    return (_real >= c._real) && (_image >= c._image);
+}
+
+bool Complex::operator<(const Complex &c) const
+{
+    return (_real < c._real) && (_image < c._image);
+}
+
+bool Complex::operator<=(const Complex &c) const
+{
+    return (_real <= c._real) && (_image <= c._image);
+}
+
+
+Complex& Complex::operator++ ()
+{
     _real++;
-    _imag++;
+    _image++;
     return *this;
 }
 
-Complex Complex::operator++(int) {
-    /*Complex tmp(*this);
-    ++(*this);
-    return tmp;*/
-    return Complex(_real++, _imag++);
+Complex Complex::operator++ (int)
+{
+    //Complex tmp(*this);
+    //_real++;
+    //_image++;
+    //return tmp;
+    return Complex(_real++, _image++);
 }
 
-Complex& Complex::operator--() {
+Complex& Complex::operator--()
+{
     _real--;
-    _imag--;
+    _image--;
     return *this;
 }
 
-Complex Complex::operator--(int) {
-    /*Complex tmp(*this);
-    --(*this);
-    return tmp;*/
-    return Complex(_real--, _imag--);
+Complex Complex::operator--(int)
+{
+    return Complex(_real--, _image--);
 }
 
-ostream &operator<<(ostream &os, const Complex &rhs) {
-    os << rhs.GetReal() << " + " << rhs.GetImag() << "i";
+ostream& operator<<(ostream& os, const Complex &x)
+{
+    os << "real value is  " << x._real << "  image value is " << x._image;
     return os;
 }
-istream &operator>>(istream &is, Complex &rhs) {
-    double real, imag;
-    is >> real >> imag;
-    rhs = Complex(real, imag);
+
+istream& operator >> (istream& is, Complex &x)
+{
+    is >> x._real >> x._image;
     return is;
-}
-
-bool operator==(const Complex &lhs, const Complex &rhs) {
-    return lhs.GetReal() == rhs.GetReal() && lhs.GetImag() == rhs.GetImag();
-}
-
-bool operator!=(const Complex &lhs, const Complex &rhs) {
-    return!(lhs == rhs);
-}
-
-bool operator<(const Complex &lhs, const Complex &rhs) {
-    return lhs.GetReal() < rhs.GetReal() || (lhs.GetReal() == rhs.GetReal() && lhs.GetImag() < rhs.GetImag());
-}
-
-bool operator>(const Complex &lhs, const Complex &rhs) {
-    return rhs < lhs;
-}
-
-bool operator<=(const Complex &lhs, const Complex &rhs) {
-    return!(lhs > rhs);
-}
-
-bool operator>=(const Complex &lhs, const Complex &rhs) {
-    return!(lhs < rhs);
-}
-
-Complex operator+(double real, const Complex &rhs) {
-    return Complex(real + rhs.GetReal(), rhs.GetImag());
-}
-
-Complex operator-(double real, const Complex &rhs) {
-    return Complex(real - rhs.GetReal(), -rhs.GetImag());
-}
-
-Complex operator*(double real, const Complex &rhs) {
-    return Complex(real * rhs.GetReal(), real * rhs.GetImag());
 }
 
 
