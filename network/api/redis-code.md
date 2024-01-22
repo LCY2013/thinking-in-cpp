@@ -4111,6 +4111,378 @@ int redisGetReply(redisContext *c, void **reply) {
 
 redis-cli 的代码不多，但是包含了很多常用的网络编程经典写法，如果想提高自己的网络编程能力，redis-cli 的代码是一份不错的学习素材。
 
+## redis 的通信协议格式
+redis-server 的通信协议格式是典型的以特定分隔符为界限的代表，这里的分隔符是 \r\n。
+
+### 请求命令格式
+redis 请求命令的一条数据的协议格式如下：
+```text
+*<参数数量>\r\n
+$<参数1的字节数量>\r\n
+<参数1的数据>\r\n
+$<参数2的字节数量>\r\n
+<参数2的数据>\r\n
+...
+$<参数n的字节数量>\r\n
+<参数n的数据>\r\n
+
+```
+
+redis 命令本身也作为协议的其中一个参数来发送的。举个例子，我们接着通过 redis-cli 给 redis-server 发送 一条 “set hello world” 命令。
+```text
+127.0.0.1:6379> set hello world
+```
+
+此时服务器端收到的数据格式如下：
+```text
+*3\r\n
+$3\r\n
+set\r\n
+$5\r\n
+hello\r\n
+$5\r\n
+world\r\n
+
+```
+
+第一行的 *3\r\n 以星号开始，数字 3 是接下来参数的数量：“set” “hello” “world” 一共三个参数；
+
+第二行的 $3\r\n 中的数字 3 是接下来第 1 个参数 set 命令的字节数目；
+
+第三行 set\r\n 是参数 1 set 命令的内容；
+
+第四行 $5\r\n 是参数 2 hello 的字节长度；
+
+第五行 hello\r\n 是参数 2 hello 的内容；
+
+第六行 $5\r\n 数字 5 是参数 3 world 的字节数；
+
+第七行 world\r\n 是参数 3 的内容；
+
+每一行都以 \r\n 结束，表示参数数量以 ***** 开头，实际内容的字节数量的行以 $ 开头，实际内容无特殊符号标记。
+
+### 应答命令格式
+redis 的应答命令有很多种情形，如下所示：
+
+- 状态回复（status reply）的第一个字节是 "+"
+
+- 错误回复（error reply）的第一个字节是 "-"
+
+- 整数回复（integer reply）的第一个字节是 ":"
+
+- 批量回复（bulk reply）的第一个字节是 "$"
+
+- 多条批量回复（multi bulk reply）的第一个字节是 "*"
+
+不同的应答类型的第一个字节开始的标识符不一样，来逐一介绍一下：
+
+1. 状态回复
+
+一个状态回复以 "+" 开始、 "\r\n" 结尾的单行字符串，格式：
+> +状态信息\r\n
+
+例如：
+>+OK\r\n
+
+显示这个结果的客户端应该显示 "+" 号之后的所有内容，对于上面这个例子， 客户端就应该显示字符串 "OK" 。
+
+状态回复用于那些不需要返回数据的命令返回。
+
+2. 错误回复
+
+状态回复的第一个字节是 "+" ，而错误回复的第一个字节是 "-" 。格式：
+> -错误信息\r\n
+
+错误回复只在某些地方出现问题时产生， 例如当用户执行一个不存在的命令或者对不正确的数据类型执行命令等等，一个客户端库应该在收到错误回复时产生一个异常。例如在 redis-server 达到最大连接数时返回的错误信息就属于错误回复。
+> -ERR max number of clients reached\r\n
+
+在 "-" 之后，直到遇到第一个空格或新行为止，这中间的内容表示所返回错误的类型。
+
+ERR 是一个通用错误，还有另外一种叫 WRONGTYPE 的错误类型，这表示一个特定的错误。 一个自实现客户端可以根据错误类型自定义自己的处理逻辑。redis 定义了非常多的 WRONGTYPE。例如：
+
+> -WRONGTYPE Operation against a key holding the wrong kind of value\r\n
+
+以上错误信息定义与 redismodule.h 139 行 。
+
+3. 整数回复
+
+整数回复就是一个以 ":" 开头， CRLF 结尾的字符串表示的整数。格式：
+> :整数值\r\n
+
+例如， ":0\r\n" 和 ":1000\r\n" 都是整数回复。
+
+redis 有 INCR key 和 LASTSAVE 返回整数， 前者返回键自增后的整数值， 后者则返回一个 UNIX 时间戳， 返回值的唯一限制是这些数必须能够用 64 位有符号整数表示。
+
+还有一种情况，整数回复用于表示逻辑布尔判断，例如 EXISTS key和 SISMEMBER key member （判断 member 元素是否集合 key 的成员。）也使用返回值 1 表示真，返回 0 表示假。
+
+其他一些命令例如 SADD 、SREM 、SETNX 只在操作真正被执行了的时候， 才返回 1 ， 否则返回 0 。
+
+redis 返回整数回复有 SETNX、 DEL、EXISTS、INCR、INCRBY 、DECR、DECRBY、DBSIZE、LASTSAVE、RENAMENX、MOVE、LLEN、SADD、SREM、SISMEMBER、SCARD 等 。
+
+4. 批量回复（Bulk Reply）
+
+服务器使用批量回复来返回二进制安全的字符串，字符串的最大长度为 512 MB 。
+
+```text
+client：GET someKey\r\n
+server：someValue\r\n
+
+```
+
+服务器发送的内容中：
+
+- 第一字节为 "$" 符号；
+
+- 接下来跟着的是表示实际回复长度的数字值；
+
+- 接下来跟着一个 CRLF；
+
+- 再后面跟着的是实际回复数据；
+
+- 最末尾是另一个 CRLF；
+
+对于 GET someKey 命令，服务器实际发生的内容为：
+
+> "$9\r\nsomeValue\r\n"
+
+如果被请求的 redis key 不存在， 那么批量回复会将使用 -1 这一特殊值作为长度值， 即：
+
+```text
+client：GET nonExistedKey\r\n
+server: $-1\r\n
+
+```
+
+这种回复称为空批量回复（NULL Bulk Reply）。
+
+当请求对象不存在时，客户端应该返回空对象，而不是空字符串，即对应 C/C++ 语言中的 NULL，Java 的中 null， golang 的 nil。
+
+5. 多条批量回复（Multi Bulk Reply）
+
+对于 LRANGE key start stop 这样的命令需要返回多个值， 这一目标可以通过多条批量回复来完成。
+
+多条批量回复是由多个回复组成的数组， 数组中的每个元素都可以是任意类型的回复， 包括多条批量回复本身。
+
+多条批量回复的第一个字节为 "*" ， 后跟一个整数值表示多条批量回复的数量， 接着是各个回复的长度和内容，长度前面以 $ 开头 。
+```text
+client： LRANGE numberList 0 3\r\n
+server： *4\r\n
+server： $5\r\n
+server： First\r\n
+server： $6\r\n
+server： Second\r\n
+server： $5\r\n
+server： Third\r\n
+server： $6\r\n
+server： Fourth\r\n
+
+```
+
+多条批量回复所使用的格式和客户端发送命令时使用的统一请求协议的格式一模一样。 服务器应答命令时所发送的多条批量回复不必是统一的类型，例如以下示例展示了一个多条批量回复， 回复中包含 3 个整数值和一个字符串：
+```text
+*4\r\n
+:1\r\n
+:2\r\n
+:3\r\n
+$10\r\n
+someString\r\n
+
+```
+
+在回复的第一行， 服务器发送 *4\r\n ， 表示这个多条批量回复包含 4 条回复， 再后面跟着的则是 4 条回复的内容，对于最后一条字符串回复类型，$10 表示字符串 someString 的长度。
+
+当然，多条批量回复也可以是空白的（empty）， 例如：
+```text
+client： LRANGE nokey 0 1
+server： *0\r\n
+
+```
+
+无内容的多条批量回复（null multi bulk reply）也是存在的， 例如命令 BLPOP key [key …] timeout 阻塞超时后， 它会返回一个无内容的多条批量回复， 这个回复的计数值为 -1 ：
+```text
+客户端： BLPOP key 1
+服务器： *-1\r\n
+
+```
+
+客户端库应该区别对待空白多条回复和无内容多条回复： 当 redis 返回一个无内容多条回复时， 客户端库应该返回一个 null 对象， 而不是一个空数组。
+
+**多条批量回复中的空元素**
+
+> 注意：多条批量回复中的元素可以将自身的长度设置为 -1 ， 从而表示该元素不存在， 并且也不是一个空白字符串（empty string）。
+
+例如，当 SORT key [BY pattern] [LIMIT offset count] [GET pattern [GET pattern …]] [ASC | DESC] [ALPHA] [STORE destination] 命令使用 GET pattern 选项对一个不存在的键进行操作时， 就会发生多条批量回复中带有空白元素的情况。
+
+以下示例展示了一个包含空元素的多重批量回复：
+```text
+服务器： *3
+服务器： $7
+服务器： element
+服务器： $-1
+服务器： $4
+服务器： item
+
+```
+
+上述回复中的第二个元素为空。
+
+对于这个回复， 客户端库应该返回类似于这样的回复：
+```text
+["element", null, "item"]
+或
+["element", nil, "item"]
+
+```
+
+### 多命令和流水线
+某些情况下你需要和 redis 服务器进行通信， 但又找不到 redis-cli ， 而手上只有 telnet、nc 等命令的时候， 你可以通过 redis 特别为这种情形而设的内联命令格式来发送命令。
+
+以下是一个客户端和服务器使用内联命令来进行交互的例子：
+```text
+client： PING
+server： +PONG
+
+```
+
+以下另一个返回整数值的内联命令的例子：
+```text
+client： EXISTS someKey
+server： :0
+
+```
+
+因为没有了统一请求协议中的 "*" 项来声明参数的数量， 所以在 telnet 会话输入命令的时候， 必须使用空格来分割各个参数， 服务器在接收到数据之后， 会按空格对用户的输入进行解析并获取其中的命令参数。
+
+以下是使用 nc 命令测试的结果：
+```text
+[root@myaliyun src]# nc -v 127.0.0.1 6379
+Ncat: Version 7.50 ( https://nmap.org/ncat )
+Ncat: Connected to 127.0.0.1:6379.
+PING
++PONG
+EXISTS someKey    
+:0
+GET HELLO WORLD
+-ERR wrong number of arguments for 'get' command
+GET HELLO
+$-1
+SET HELLO WORLD
++OK
+GET HELLO
+$5
+WORLD
+
+
+```
+
+上述代码中连接成功后 nc 客户端和 redis-server 的应答如下：
+```text
+client: PING
+server: PONG
+client: EXISTS someKey
+server: :0
+client: GET HELLO WORLD
+server: -ERR wrong number of arguments for 'get' command
+client: GET HELLO
+server: $-1
+client: SET HELLO WORLD
+server: +OK
+client: GET HELLO
+server: $5
+server: WORLD
+
+```
+
+上述操作中，client 和 server 每次一行结尾的换行符是什么内容？\r\n 还是 \n？
+
+redis 官方的协议规范链接是：https://redis.io/topics/protocol。
+
+### redis 对协议数据解析逻辑
+redis 对协议解析的逻辑位于 readQueryFromClient 函数中，在该函数中调用 connRead 函数收取数据并存入接收缓冲区 c->querybuf 中，然后调用 processInputBuffer 对数据进行解包。
+```c
+ //networking.c 1890行
+ void readQueryFromClient(connection *conn) {
+    //...省略部分代码...
+    
+    //收取数据存入c->querybuf中
+    nread = connRead(c->conn, c->querybuf+qblen, readlen);
+    
+    //...省略部分代码...
+
+    //对收到的数据进行解包
+	processInputBuffer(c);
+}
+
+```
+
+processInputBuffer 函数的定义如下：
+```c
+void processInputBuffer(client *c) {
+    while(c->qb_pos < sdslen(c->querybuf)) {
+        //...省略部分代码...
+
+        /* Determine request type when unknown. */
+        if (!c->reqtype) {
+            if (c->querybuf[c->qb_pos] == '*') {
+                c->reqtype = PROTO_REQ_MULTIBULK;
+            } else {
+                c->reqtype = PROTO_REQ_INLINE;
+            }
+        }
+
+        if (c->reqtype == PROTO_REQ_INLINE) {
+            if (processInlineBuffer(c) != C_OK) break;
+            /* If the Gopher mode and we got zero or one argument, process
+             * the request in Gopher mode. */
+            if (server.gopher_enabled &&
+                ((c->argc == 1 && ((char*)(c->argv[0]->ptr))[0] == '/') ||
+                  c->argc == 0))
+            {
+                processGopherRequest(c);
+                resetClient(c);
+                c->flags |= CLIENT_CLOSE_AFTER_REPLY;
+                break;
+            }
+        } else if (c->reqtype == PROTO_REQ_MULTIBULK) {
+            if (processMultibulkBuffer(c) != C_OK) break;
+        } else {
+            serverPanic("Unknown request type");
+        }
+
+        /* Multibulk processing could see a <= 0 length. */
+        if (c->argc == 0) {
+            resetClient(c);
+        } else {
+            /* If we are in the context of an I/O thread, we can't really
+             * execute the command here. All we can do is to flag the client
+             * as one that needs to process the command. */
+            if (c->flags & CLIENT_PENDING_READ) {
+                c->flags |= CLIENT_PENDING_COMMAND;
+                break;
+            }
+
+            /* We are finally ready to execute the command. */
+            if (processCommandAndResetClient(c) == C_ERR) {
+                /* If the client is no longer valid, we avoid exiting this
+                 * loop and trimming the client buffer later. So we return
+                 * ASAP in that case. */
+                return;
+            }
+        }
+    }
+
+    /* Trim to pos */
+    if (c->qb_pos) {
+        sdsrange(c->querybuf,c->qb_pos,-1);
+        c->qb_pos = 0;
+    }
+}
+
+```
+
+processInputBuffer 中判断收到的数据第一个字节是否是星号（*）开头，如果不是则接下来当做内联命令类型（PROTO_REQ_INLINE），反之当做**多条批量回复（Multi Bulk Reply）** 类型（PROTO_REQ_MULTIBULK），如果是内联命令则调用 processInlineBuffer 函数根据内联命令的协议格式尝试解析数据，如果是多条批量回复则调用 processMultibulkBuffer 函数尝试按多条批量回复解析数据，具体的解析协议的流程就是按上文介绍的协议格式去解析即可。
+
+掌握了 redis 的通信协议，你可以以不同的编程语言来设计不同的 redis 客户端。
 
 
 
