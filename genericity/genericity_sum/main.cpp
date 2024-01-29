@@ -23,3 +23,18 @@ int main()
     return 0;
 }
 
+/*
+main:
+        push    rbp
+        mov     rbp, rsp
+        mov     esi, 5050
+        mov     edi, OFFSET FLAT:_ZSt4cout
+        call    std::basic_ostream<char, std::char_traits<char> >::operator<<(int)
+        mov     esi, OFFSET FLAT:_ZSt4endlIcSt11char_traitsIcEERSt13basic_ostreamIT_T0_ES6_
+        mov     rdi, rax
+        call    std::basic_ostream<char, std::char_traits<char> >::operator<<(std::basic_ostream<char, std::char_traits<char> >& (*)(std::basic_ostream<char, std::char_traits<char> >&))
+        mov     eax, 0
+        pop     rbp
+        ret
+ */
+
