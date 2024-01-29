@@ -6,9 +6,14 @@
 
 using namespace std;
 
+template <typename T>
+const T& max(const T& a, const T& b) {
+    return (a > b) ? a : b;
+}
+
 //声明泛型
 template<class T>
-T max(T a, T b) {
+T max(const T a, const T b) {
     return a > b ? a : b;
 }
 
@@ -19,7 +24,7 @@ char *max(char *a, char *b) {
 }
 
 template<class T1, class T2>
-int max(T1 a, T2 b) {
+int max_diff(T1 a, T2 b) {
     return static_cast<int>(a > b ? a : b);
 }
 
@@ -54,16 +59,16 @@ T TC<T>::Max() const {
 }
 
 int main() {
-    //cout << max(1, 2) << endl;
-    //cout << max(1.5, 3.5) << endl;
-    //cout << max('a', 'b') << endl;
-    //cout << max("hello", "world") << endl;
+    cout << max(1, 2) << endl;
+    cout << max(1.5, 3.5) << endl;
+    cout << max('a', 'b') << endl;
+    cout << max("hello", "world") << endl;
 
-    //char* s1 = "hello";
-    //char* s2 = "world";
-    //cout << max(s1, s2) << endl;
+    char *s1 = "hello";
+    char *s2 = "world";
+    cout << max(s1, s2) << endl;
 
-    //cout << max(10, 2.5) << endl;
+    cout << max_diff(10, 2.5) << endl;
 
     TC<int> obj1(2, 4, 3);
     cout << obj1.Min() << endl;
