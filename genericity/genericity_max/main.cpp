@@ -59,14 +59,14 @@ T TC<T>::Max() const {
 }
 
 int main() {
-    cout << max(1, 2) << endl;
-    cout << max(1.5, 3.5) << endl;
-    cout << max('a', 'b') << endl;
-    cout << max("hello", "world") << endl;
-
-    char *s1 = "hello";
-    char *s2 = "world";
-    cout << max(s1, s2) << endl;
+//    cout << max(1, 2) << endl;
+//    cout << max(1.5, 3.5) << endl;
+//    cout << max('a', 'b') << endl;
+//    cout << max("hello", "world") << endl;
+//
+//    char *s1 = "hello";
+//    char *s2 = "world";
+//    cout << max(s1, s2) << endl;
 
     cout << max_diff(10, 2.5) << endl;
 
