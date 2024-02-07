@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 
-set (TARGET ModuleInclude)
+set (TARGET GlobalModuleFragment)
 
 project(${TARGET})
 
@@ -21,7 +21,6 @@ function (prepare_for_module TGT)
 
         add_custom_target(user_headers ALL
                 COMMAND ${CMAKE_COMMAND} -E echo "Building Header caches"
-                COMMAND g++ -fmodules-ts -std=c++20 ${CXX_SOURCE_DIR}/h1.h -c
                 COMMAND g++ -fmodules-ts -std=c++20 ${CXX_SOURCE_DIR}/h2.h -c
                 WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
         )
@@ -49,7 +48,6 @@ target_include_directories(
 target_sources(
         ${TARGET}
         PRIVATE
-        src/h1.h
         src/h2.h
 )
 
