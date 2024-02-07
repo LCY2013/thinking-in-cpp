@@ -88,3 +88,7 @@ endif()
 
 #aux_source_directory(. DIR_SRCS)
 #add_executable(${ProjectId} ${DIR_SRCS})
+
+ADD_SUBDIRECTORY(cpp20/modulev1)
+ADD_SUBDIRECTORY(cpp20/ModuleGettingStarted)
+ADD_SUBDIRECTORY(cpp20/MultiModules)
