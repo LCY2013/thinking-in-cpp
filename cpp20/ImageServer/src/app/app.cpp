@@ -12,11 +12,12 @@ import ips.cache;
 
 namespace ips::app {
     export void processRequest(
-            ips::cache::CacheLoader *cacheLoader,
-            const ips::network::RequestPtr &request,
-            ips::network::ResponsePtr &response) {
-        const std::string &path = request->getPath();
-        const std::map <std::string, std::string> &query = request->getQuery();
+            ips::cache::CacheLoader* cacheLoader,
+            ips::network::RequestPtr request,
+            ips::network::ResponsePtr response
+    ) {
+        const std::string& path = request->getPath();
+        const std::map<std::string, std::string>& query = request->getQuery();
         std::string data = request->getBody();
         ips::image::Processor imageProcessor;
         std::string cacheKey = path;

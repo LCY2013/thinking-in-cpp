@@ -20,11 +20,11 @@ namespace ips::network {
     public:
         Connection() {}
 
-        void onRequest(OnRequestHandler handler) {
-            _requestHandlers.push_back(handler);
+        void onRequest(OnRequestHandler requestHandler) {
+            _requestHandlers.push_back(requestHandler);
         }
 
     private:
-        std::vector <OnRequestHandler> _requestHandlers;
+        std::vector<OnRequestHandler> _requestHandlers;
     };
 }

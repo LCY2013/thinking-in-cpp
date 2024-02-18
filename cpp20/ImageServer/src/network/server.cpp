@@ -7,7 +7,7 @@ import <string>;
 import <cstdint>;
 import <functional>;
 import <vector>;
-import <memory>;
+//import <memory>;
 import <iostream>;
 
 import :connection;

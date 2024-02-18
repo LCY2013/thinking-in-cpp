@@ -8,36 +8,45 @@ import <string>;
 namespace ips::command {
     export class Argument {
     public:
-        Argument(const std::string& flag,
-                 const std::string& name,
-                 const std::string& helpMessage,
-                 bool required = false):
-                 _flag(flag),
-                 _name(name),
-                 _helpMessage(helpMessage),
-                 _required(required)
-        {}
-        const std::string& getFlag() const {
+        Argument(
+                const std::string &flag,
+                const std::string &name,
+                const std::string &helpMessage = "",
+                bool required = false
+        ) :
+                _flag(flag),
+                _name(name),
+                _helpMessage(helpMessage),
+                _required(required) {}
+
+        const std::string &getFlag() const {
             return _flag;
         }
-        void setFlag(const std::string& flag) {
+
+        void setFlag(const std::string &flag) {
             _flag = flag;
         }
-        const std::string& getName() const {
+
+        const std::string &getName() const {
             return _name;
         }
-        void setName(const std::string& name) {
+
+        void setName(const std::string &name) {
             _name = name;
         }
-        const std::string& getHelpMessage() const {
+
+        const std::string &getHelpMessage() const {
             return _helpMessage;
         }
-        void setHelpMessage(const std::string& helpMessage) {
+
+        void setHelpMessage(const std::string &helpMessage) {
             _helpMessage = helpMessage;
         }
+
         bool isRequired() const {
             return _required;
         }
+
         void setRequired(bool required) {
             _required = required;
         }
