@@ -233,7 +233,7 @@ public:
         if (first) atexit(shutdown);
         first = false;
 
-        list<GCInfo<T> >::iterator p;
+        typename list<GCInfo<T> >::iterator p;
 
         p = findPtrInfo(t);
 
@@ -263,7 +263,7 @@ public:
 
     // Copy constructor.
     GCPtr(const GCPtr &ob) {
-        list<GCInfo<T> >::iterator p;
+        typename list<GCInfo<T> >::iterator p;
 
         p = findPtrInfo(ob.addr);
         p->refcount++; // increment ref count
@@ -314,22 +314,22 @@ public:
 
     // Return an Iter to the start of the allocated memory.
     Iter<T> begin() {
-        int size;
+        int sizeBegin;
 
-        if (isArray) size = arraySize;
-        else size = 1;
+        if (isArray) sizeBegin = arraySize;
+        else sizeBegin = 1;
 
         return Iter<T>(addr, addr, addr + size);
     }
 
     // Return an Iter to one past the end of an allocated array.
     Iter<T> end() {
-        int size;
+        int sizeEnd;
 
-        if (isArray) size = arraySize;
-        else size = 1;
+        if (isArray) sizeEnd = arraySize;
+        else sizeEnd = 1;
 
-        return Iter<T>(addr + size, addr, addr + size);
+        return Iter<T>(addr + sizeEnd, addr, addr + sizeEnd);
     }
 
     // Return the size of gclist for this type
@@ -353,7 +353,7 @@ bool GCPtr<T, size>::first = true;
 // Destructor for GCPtr.
 template <class T, int size>
 GCPtr<T, size>::~GCPtr() {
-    list<GCInfo<T> >::iterator p;
+    typename list<GCInfo<T> >::iterator p;
 
     p = findPtrInfo(addr);
     if (p->refcount) p->refcount--; // decrement ref count
@@ -383,7 +383,7 @@ bool GCPtr<T, size>::collect() {
 	showlist();
 #endif
 
-    list<GCInfo<T> >::iterator p;
+    typename list<GCInfo<T> >::iterator p;
     do {
 
         // Scan gclist looking for unreferenced pointers.
@@ -431,7 +431,7 @@ bool GCPtr<T, size>::collect() {
 // Overload assignment of pointer to GCPtr.
 template <class T, int size>
 T * GCPtr<T, size>::operator=(T *t) {
-    list<GCInfo<T> >::iterator p;
+    typename list<GCInfo<T> >::iterator p;
 
     // First, decrement the reference count
     // for the memory currently being pointed to.
@@ -459,7 +459,7 @@ T * GCPtr<T, size>::operator=(T *t) {
 // Overload assignment of GCPtr to GCPtr.
 template <class T, int size>
 GCPtr<T, size> & GCPtr<T, size>::operator=(GCPtr &rv) {
-    list<GCInfo<T> >::iterator p;
+    typename list<GCInfo<T> >::iterator p;
 
     // First, decrement the reference count
     // for the memory currently being pointed to.
@@ -479,7 +479,7 @@ GCPtr<T, size> & GCPtr<T, size>::operator=(GCPtr &rv) {
 // A utility function that displays gclist.
 template <class T, int size>
 void GCPtr<T, size>::showlist() {
-    list<GCInfo<T> >::iterator p;
+    typename list<GCInfo<T> >::iterator p;
 
     cout << "gclist<" << typeid(T).name() << ", "
          << size << ">:\n";
@@ -505,7 +505,7 @@ template <class T, int size>
 typename list<GCInfo<T> >::iterator
 GCPtr<T, size>::findPtrInfo(T *ptr) {
 
-    list<GCInfo<T> >::iterator p;
+    typename list<GCInfo<T> >::iterator p;
 
     // Find ptr in gclist.
     for (p = gclist.begin(); p != gclist.end(); p++)
@@ -521,7 +521,7 @@ void GCPtr<T, size>::shutdown() {
 
     if (gclistSize() == 0) return; // list is empty
 
-    list<GCInfo<T> >::iterator p;
+    typename list<GCInfo<T> >::iterator p;
 
     for (p = gclist.begin(); p != gclist.end(); p++) {
         // Set all reference counts to zero
