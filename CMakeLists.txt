@@ -1,6 +1,7 @@
 #https://cmake.org/
 #cmake_minimum_required 指令指定支持该 CMakeLists.txt 文件的 cmake 最低版本号
 cmake_minimum_required(VERSION 3.26)
+set (TARGET thinking-in-cpp)
 
 get_filename_component(ProjectId ${CMAKE_CURRENT_SOURCE_DIR} NAME)
 message(STATUS "Project ID: ${ProjectId}")
@@ -89,6 +90,21 @@ endif()
 #aux_source_directory(. DIR_SRCS)
 #add_executable(${ProjectId} ${DIR_SRCS})
 
+function (prepare_for_module TGT)
+    target_compile_options(${TGT} PUBLIC -fmodules-ts)
+    set_property(TARGET ${TGT} PROPERTY CXX_STANDARD 20)
+    set_property(TARGET ${TGT} PROPERTY CXX_EXTENSIONS OFF)
+    if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        add_dependencies(${TGT} std_modules)
+    endif()
+endfunction()
+
+set (MODULE_EXT cpp)
+if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    set (MODULE_EXT ixx)
+    add_compile_options(/utf-8)
+endif()
+
 ADD_SUBDIRECTORY(cpp20/module/modulev1)
 ADD_SUBDIRECTORY(cpp20/module/ModuleGettingStarted)
 ADD_SUBDIRECTORY(cpp20/module/MultiModules)
@@ -108,3 +124,7 @@ ADD_SUBDIRECTORY(cpp20/concepts/AtomicConstraints)
 ADD_SUBDIRECTORY(cpp20/concepts/RequiresExpressions)
 ADD_SUBDIRECTORY(cpp20/concepts/RequiresClauses)
 ADD_SUBDIRECTORY(cpp20/concepts/NumCpp)
+
+if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    prepare_for_module(${TARGET})
+endif()
