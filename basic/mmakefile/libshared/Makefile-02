@@ -4,17 +4,18 @@ OBJS = reply.o
 LIB = libreply.so
 CXXFLAGS = -g -Wall -O2 -c -fPIC
 LDFLAGS = -L. -lreply -Wl, -rpath $(@D)
-SHARED = -shared
 
 .PHONY: clean
 $(TARGET): main.o $(LIB)
 	$(CXX) $< -o $@ $(LDFLAGS)
 #	$(CXX) main.o -o $(TARGET) -L. -lreply -Wl, -rpath ./
 $(LIB): $(OBJS)
-	$(CXX) $(SHARED) $^ -o $@
+	$(CXX) -shared $^ -o $@
 #	$(CXX) -shared $(OBJS) -o $@
-%.o:%.cpp
-	$(CXX) $(CXXFLAGS) $^ -o $@
+reply.o: reply.cpp
+	$(CXX) $(CXXFLAGS) $< -o $@
+main.o: main.cpp
+	$(CXX) $(CXXFLAGS) $< -o $@
 
 #. : %.o
 #	$(CXX) -shared -o $@ $^

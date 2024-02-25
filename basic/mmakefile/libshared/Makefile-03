@@ -13,8 +13,8 @@ $(TARGET): main.o $(LIB)
 $(LIB): $(OBJS)
 	$(CXX) $(SHARED) $^ -o $@
 #	$(CXX) -shared $(OBJS) -o $@
-%.o:%.cpp
-	$(CXX) $(CXXFLAGS) $^ -o $@
+$(TARGETOBJ) $(OBJS): %.o:%.cpp
+	$(CXX) $(CXXFLAGS) $< -o $@
 
 #. : %.o
 #	$(CXX) -shared -o $@ $^
