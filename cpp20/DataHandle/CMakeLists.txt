@@ -38,12 +38,12 @@ add_executable(
         RangesDanglingFailed
         RangesDanglingFailed/src/main.cpp
 )
-#[[
+
 add_executable(
         RangesDanglingCheck
         RangesDanglingCheck/src/main.cpp
 )
-
+#[[
 add_executable(
         ViewBasic
         ViewBasic/src/main.cpp
