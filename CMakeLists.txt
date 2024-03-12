@@ -131,6 +131,7 @@ ADD_SUBDIRECTORY(cpp20/Coroutines/PromiseType)
 ADD_SUBDIRECTORY(cpp20/Coroutines/CoroutineHandle)
 ADD_SUBDIRECTORY(cpp20/Coroutines/Generator)
 ADD_SUBDIRECTORY(cpp20/Coroutines/Asyncpp)
+ADD_SUBDIRECTORY(cpp20/DataHandle)
 
 #if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 #    prepare_for_module(${TARGET})
