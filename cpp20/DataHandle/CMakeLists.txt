@@ -28,12 +28,12 @@ add_executable(
         RangesSizeSample
         RangesSizeSample/src/main.cpp
 )
-#[[
+
 add_executable(
         RangesDataSample
         RangesDataSample/src/main.cpp
 )
-
+#[[
 add_executable(
         RangesDanglingFailed
         RangesDanglingFailed/src/main.cpp

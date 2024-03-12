@@ -185,7 +185,7 @@ int main() {
 - ranges::data：获取某个range的连续数据缓冲区。
 - ranges::cdata：上述函数的只读版本。
 
-我同样附上了示例代码。
+示例代码如下。
 
 ```c++
 #include <vector>
